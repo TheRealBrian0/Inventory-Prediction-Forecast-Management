@@ -36,6 +36,8 @@ CSV_PATH = "C:/Users/arvinbrian.j/Desktop/DataSet/SYSCO_POC_DB/retail_store_inve
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'inventory-forecasting-poc-secret-key'
 
+DEFAULT_STOCKOUT_HORIZON_DAYS = 14
+
 # ============================================
 # DATA LOADING AND PROCESSING
 # ============================================
@@ -229,7 +231,7 @@ def get_reorder_recommendation(days_until_stockout, lead_time=7):
 # ANALYTICS FUNCTIONS
 # ============================================
 
-def get_forecast_for_product(df, product_id, store_id='S001', periods=30):
+def get_forecast_for_product(df, product_id, store_id='S001', periods=DEFAULT_STOCKOUT_HORIZON_DAYS):
     """
     Get forecast for a specific product.
     
@@ -277,6 +279,10 @@ def get_forecast_for_product(df, product_id, store_id='S001', periods=30):
     # Forecast summary
     total_forecasted_demand = forecast['yhat'].sum()
     avg_forecasted_demand = forecast['yhat'].mean()
+    cumulative_forecast = forecast['yhat'].cumsum()
+    cumulative_horizon_demand = cumulative_forecast.iloc[-1] if len(cumulative_forecast) > 0 else 0
+    stockout_within_horizon = days_until_stockout <= periods
+    stockout_date_within_horizon = stockout_date.strftime('%Y-%m-%d') if stockout_within_horizon and stockout_date else None
     
     return {
         'product_id': product_id,
@@ -284,6 +290,11 @@ def get_forecast_for_product(df, product_id, store_id='S001', periods=30):
         'current_inventory': current_inventory,
         'days_until_stockout': days_until_stockout,
         'stockout_date': stockout_date.strftime('%Y-%m-%d') if stockout_date else 'N/A',
+        'forecast_horizon_days': periods,
+        'horizon_demand_forecast': round(total_forecasted_demand, 2),
+        'cumulative_horizon_demand': round(cumulative_horizon_demand, 2),
+        'stockout_within_horizon': stockout_within_horizon,
+        'stockout_date_within_horizon': stockout_date_within_horizon,
         'recommendation': recommendation,
         'avg_daily_demand': round(avg_daily_demand, 2),
         'max_daily_demand': round(max_daily_demand, 2),
@@ -299,7 +310,7 @@ def get_forecast_for_product(df, product_id, store_id='S001', periods=30):
     }
 
 
-def get_all_products_forecast(df, periods=30):
+def get_all_products_forecast(df, periods=DEFAULT_STOCKOUT_HORIZON_DAYS):
     """
     Get forecast for all products.
     
@@ -310,18 +321,23 @@ def get_all_products_forecast(df, periods=30):
     Returns:
         List of forecast dictionaries for all products
     """
-    products = df['Product ID'].unique()
+    store_products = (
+        df[['Store ID', 'Product ID']]
+        .drop_duplicates()
+        .sort_values(['Store ID', 'Product ID'])
+        .itertuples(index=False)
+    )
     forecasts = []
     
-    for product_id in products:
-        forecast = get_forecast_for_product(df, product_id, 'S001', periods)
+    for store_id, product_id in store_products:
+        forecast = get_forecast_for_product(df, product_id, store_id, periods)
         if forecast:
             forecasts.append(forecast)
     
     return forecasts
 
 
-def get_dashboard_metrics(df):
+def get_dashboard_metrics(df, stockout_horizon_days=DEFAULT_STOCKOUT_HORIZON_DAYS):
     """
     Get key dashboard metrics.
     
@@ -346,10 +362,11 @@ def get_dashboard_metrics(df):
     avg_daily_sales = df.groupby('Date')['Units Sold'].sum().mean()
     
     # Products at risk (less than 7 days of stock)
-    forecasts = get_all_products_forecast(df, 30)
-    at_risk = sum(1 for f in forecasts if f['days_until_stockout'] < 7)
-    low_stock = sum(1 for f in forecasts if 7 <= f['days_until_stockout'] < 14)
-    healthy = sum(1 for f in forecasts if f['days_until_stockout'] >= 14)
+    forecasts = get_all_products_forecast(df, stockout_horizon_days)
+    stockout_le_3_days = sum(1 for f in forecasts if f['days_until_stockout'] <= 3)
+    stockout_4_7_days = sum(1 for f in forecasts if 4 <= f['days_until_stockout'] <= 7)
+    stockout_8_14_days = sum(1 for f in forecasts if 8 <= f['days_until_stockout'] <= stockout_horizon_days)
+    stockout_gt_14_days = sum(1 for f in forecasts if f['days_until_stockout'] > stockout_horizon_days)
     
     # Category breakdown
     category_inventory = latest_data.groupby('Category')['Inventory Level'].sum().to_dict()
@@ -358,9 +375,11 @@ def get_dashboard_metrics(df):
         'total_inventory': int(total_inventory),
         'total_units_sold_30d': int(total_units_sold),
         'avg_daily_sales': round(avg_daily_sales, 2),
-        'products_at_risk': at_risk,
-        'products_low_stock': low_stock,
-        'products_healthy': healthy,
+        'stockout_horizon_days': stockout_horizon_days,
+        'stockout_le_3_days': stockout_le_3_days,
+        'stockout_4_7_days': stockout_4_7_days,
+        'stockout_8_14_days': stockout_8_14_days,
+        'stockout_gt_14_days': stockout_gt_14_days,
         'total_products': len(forecasts),
         'category_inventory': category_inventory,
         'latest_date': latest_date.strftime('%Y-%m-%d')
@@ -381,10 +400,11 @@ def index():
     df = preprocess_data(df)
     
     # Get dashboard metrics
-    metrics = get_dashboard_metrics(df)
+    stockout_horizon_days = request.args.get('horizon_days', default=DEFAULT_STOCKOUT_HORIZON_DAYS, type=int)
+    metrics = get_dashboard_metrics(df, stockout_horizon_days)
     
     # Get all product forecasts
-    forecasts = get_all_products_forecast(df, 30)
+    forecasts = get_all_products_forecast(df, stockout_horizon_days)
     
     return render_template(
         'dashboard.html',
@@ -401,7 +421,8 @@ def api_metrics():
     df = load_data(CSV_PATH)
     df = preprocess_data(df)
     
-    metrics = get_dashboard_metrics(df)
+    stockout_horizon_days = request.args.get('horizon_days', default=DEFAULT_STOCKOUT_HORIZON_DAYS, type=int)
+    metrics = get_dashboard_metrics(df, stockout_horizon_days)
     
     return jsonify(metrics)
 
@@ -414,7 +435,8 @@ def api_all_forecasts():
     df = load_data(CSV_PATH)
     df = preprocess_data(df)
     
-    forecasts = get_all_products_forecast(df, 30)
+    stockout_horizon_days = request.args.get('horizon_days', default=DEFAULT_STOCKOUT_HORIZON_DAYS, type=int)
+    forecasts = get_all_products_forecast(df, stockout_horizon_days)
     
     return jsonify(forecasts)
 

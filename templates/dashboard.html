@@ -222,7 +222,7 @@
     <div class="container">
         <div class="header">
             <h1>📦 Inventory Status Dashboard</h1>
-            <p>Real-time stock monitoring with AI-powered stockout predictions using Prophet</p>
+            <p>Real-time monitoring with 14-day stockout policy forecasting</p>
         </div>
 
         <div class="status-container">
@@ -230,32 +230,37 @@
 
             <div class="summary-bar">
                 <div class="summary-item">
-                    <div class="summary-count critical">{{ metrics.products_at_risk }}</div>
-                    <div class="summary-label">Critical<br>
-                        < 7 days</div>
+                    <div class="summary-count critical">{{ metrics.stockout_le_3_days }}</div>
+                    <div class="summary-label">Stockout<br>
+                        <= 3 days</div>
                     </div>
                     <div class="summary-item">
-                        <div class="summary-count warning">{{ metrics.products_low_stock }}</div>
-                        <div class="summary-label">Low Stock<br>7-14 days</div>
+                        <div class="summary-count warning">{{ metrics.stockout_4_7_days }}</div>
+                        <div class="summary-label">Stockout<br>4-7 days</div>
                     </div>
                     <div class="summary-item">
-                        <div class="summary-count healthy">{{ metrics.products_healthy }}</div>
-                        <div class="summary-label">Healthy<br>> 14 days</div>
+                        <div class="summary-count healthy">{{ metrics.stockout_8_14_days }}</div>
+                        <div class="summary-label">Stockout<br>8-14 days</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="summary-count healthy">{{ metrics.stockout_gt_14_days }}</div>
+                        <div class="summary-label">Stockout<br>> 14 days</div>
                     </div>
                     <div class="summary-item">
                         <div class="summary-count" style="color: #333;">{{ metrics.total_products }}</div>
-                        <div class="summary-label">Total<br>SKUs</div>
+                        <div class="summary-label">Total<br>Store+SKU</div>
                     </div>
                 </div>
 
                 <div class="sku-grid">
                     {% for forecast in forecasts %}
                     <div
-                        class="sku-card {% if forecast.days_until_stockout < 7 %}critical{% elif forecast.days_until_stockout < 14 %}warning{% else %}healthy{% endif %}">
+                        class="sku-card {% if forecast.days_until_stockout <= 3 %}critical{% elif forecast.days_until_stockout <= 14 %}warning{% else %}healthy{% endif %}">
                         <div class="sku-header">
                             <span class="sku-id">{{ forecast.product_id }}</span>
+                            <span class="label">Store {{ forecast.store_id }}</span>
                             <span class="status-icon">
-                                {% if forecast.days_until_stockout < 7 %}⚠️ {% elif forecast.days_until_stockout < 14
+                                {% if forecast.days_until_stockout <= 3 %}⚠️ {% elif forecast.days_until_stockout <= 14
                                     %}⚡ {% else %}✅{% endif %} </span>
                         </div>
                         <div class="sku-details">
@@ -268,22 +273,27 @@
                                 <span class="value">{{ forecast.avg_daily_demand }}</span>
                             </div>
                             <div class="row">
-                                <span class="label">Days Until Stockout</span>
-                                <span class="value">
-                                    {% if forecast.days_until_stockout >= 999 %}30+ days
-                                    {% else %}{{ forecast.days_until_stockout }} days{% endif %}
-                                </span>
+                                <span class="label">14-Day Demand Forecast</span>
+                                <span class="value">{{ forecast.horizon_demand_forecast }}</span>
                             </div>
                             <div class="row">
-                                <span class="label">Predicted Stockout</span>
-                                <span class="value">{{ forecast.stockout_date }}</span>
+                                <span class="label">Cumulative 14-Day Demand</span>
+                                <span class="value">{{ forecast.cumulative_horizon_demand }}</span>
+                            </div>
+                            <div class="row">
+                                <span class="label">Stockout Within 14 Days</span>
+                                <span class="value">{{ 'Yes' if forecast.stockout_within_horizon else 'No' }}</span>
+                            </div>
+                            <div class="row">
+                                <span class="label">Estimated Stockout Date</span>
+                                <span class="value">{{ forecast.stockout_date_within_horizon or 'After 14 days' }}</span>
                             </div>
                         </div>
-                        {% if forecast.days_until_stockout < 7 %} <div class="warning-text">
-                            ⚠️ WARNING: Stockout imminent! Reorder immediately.
+                        {% if forecast.days_until_stockout <= 3 %} <div class="warning-text">
+                            ⚠️ WARNING: Stockout expected within 3 days. Reorder immediately.
                     </div>
-                    {% elif forecast.days_until_stockout < 14 %} <div class="low-stock-text">
-                        ⚡ Low stock - consider reordering soon.
+                    {% elif forecast.days_until_stockout <= 14 %} <div class="low-stock-text">
+                        ⚡ Stockout expected within 14 days - prioritize replenishment.
                 </div>
                 {% endif %}
             </div>
