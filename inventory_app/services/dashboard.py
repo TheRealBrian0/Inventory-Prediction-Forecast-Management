@@ -23,8 +23,27 @@ def get_forecast_for_product(df, product_id, store_id='S001', periods=30):
     else:
         forecast = forecast_demand_simple(train_data, periods)
 
+    # Prophet returns historical + future rows; keep only future horizon rows.
+    last_history_date = train_data['ds'].max()
+    forecast = forecast[forecast['ds'] > last_history_date].copy()
+    forecast = forecast.sort_values('ds').head(periods)
+
+    if forecast.empty:
+        return None
+
+    # Keep demand predictions non-negative and interval ordering sane for display.
+    forecast['yhat'] = forecast['yhat'].clip(lower=0)
+    forecast['yhat_lower'] = forecast['yhat_lower'].clip(lower=0)
+    forecast['yhat_upper'] = forecast['yhat_upper'].clip(lower=0)
+    forecast['yhat_lower'] = forecast[['yhat_lower', 'yhat']].min(axis=1)
+    forecast['yhat_upper'] = forecast[['yhat_upper', 'yhat']].max(axis=1)
+
     current_inventory = float(product_data['Inventory Level'].iloc[-1])
-    stockout_date, days_until_stockout = calculate_stockout_date(current_inventory, forecast)
+    stockout_date, days_until_stockout = calculate_stockout_date(
+        current_inventory,
+        forecast,
+        reference_date=product_data['Date'].max(),
+    )
     recommendation = get_reorder_recommendation(days_until_stockout)
 
     avg_daily_demand = product_data['Units Sold'].mean()

@@ -5,6 +5,8 @@
 Flask>=2.3.0
 Werkzeug>=2.3.0
 python-dotenv>=1.0.0
+SQLAlchemy>=2.0.0
+PyMySQL>=1.1.0
 
 # Data Processing
 pandas>=1.5.0

@@ -13,7 +13,7 @@ api_bp = Blueprint('api', __name__, url_prefix='/api')
 def api_metrics():
     """API endpoint for dashboard metrics."""
     try:
-        df = load_inventory_data(current_app.config['CSV_PATH'])
+        df = load_inventory_data(config=current_app.config)
         df = preprocess_data(df)
     except InventoryDataError as exc:
         return jsonify({'error': str(exc)}), 503
@@ -31,7 +31,7 @@ def api_metrics():
 def api_all_forecasts():
     """API endpoint for all product forecasts."""
     try:
-        df = load_inventory_data(current_app.config['CSV_PATH'])
+        df = load_inventory_data(config=current_app.config)
         df = preprocess_data(df)
     except InventoryDataError as exc:
         return jsonify({'error': str(exc)}), 503

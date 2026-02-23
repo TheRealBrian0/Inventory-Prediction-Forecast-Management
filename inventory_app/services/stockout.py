@@ -3,8 +3,13 @@
 from datetime import datetime
 
 
-def calculate_stockout_date(inventory_level, forecast_df):
+def calculate_stockout_date(inventory_level, forecast_df, reference_date=None):
     """Calculate estimated stockout date based on forecasted demand."""
+    if reference_date is None:
+        reference_date = datetime.now().date()
+    elif hasattr(reference_date, "date"):
+        reference_date = reference_date.date()
+
     if inventory_level <= 0:
         return datetime.now(), 0
 
@@ -15,7 +20,7 @@ def calculate_stockout_date(inventory_level, forecast_df):
     if len(stockout_idx) > 0:
         first_idx = stockout_idx[0]
         stockout_date = forecast_df.loc[first_idx, 'ds']
-        days_until_stockout = (stockout_date - datetime.now()).days
+        days_until_stockout = (stockout_date.date() - reference_date).days
         return stockout_date, days_until_stockout
 
     return None, 999

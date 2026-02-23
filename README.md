@@ -40,20 +40,29 @@ The CSV must contain these columns:
 
 ## Configuration
 Use environment variables (from shell or `.env`):
+- `DATA_SOURCE`: `csv` or `mysql`
 - `INVENTORY_CSV_PATH` (preferred): full path to your CSV file
 - `CSV_PATH` (legacy fallback): full path to your CSV file
 - `FORECAST_PERIODS` (default: `30`)
 - `DEFAULT_STORE_ID` (default: `S001`)
 - `SECRET_KEY` (optional Flask secret)
+- `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `DB_TABLE` (for MySQL mode)
 
 ### `.env` (recommended)
 
 Create a `.env` in the project root:
 
 ```env
+DATA_SOURCE=mysql
 INVENTORY_CSV_PATH=C:\Users\arvinbrian.j\Desktop\DataSet\SYSCO_POC_DB\retail_store_inventory.csv
 FORECAST_PERIODS=30
 DEFAULT_STORE_ID=S001
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=root
+DB_NAME=sysco_poc_db
+DB_TABLE=retail_inventory
 ```
 
 The app auto-loads `.env` on startup.

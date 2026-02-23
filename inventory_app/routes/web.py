@@ -19,7 +19,7 @@ web_bp = Blueprint("web", __name__)
 def index():
     """Main dashboard page."""
     try:
-        df = load_inventory_data(current_app.config["CSV_PATH"])
+        df = load_inventory_data(config=current_app.config)
         df = preprocess_data(df)
     except InventoryDataError as exc:
         return render_template("dashboard.html", metrics=None, forecasts=[], load_error=str(exc))
@@ -42,7 +42,7 @@ def index():
 def product_detail(product_id):
     """Product detail forecast page."""
     try:
-        df = load_inventory_data(current_app.config["CSV_PATH"])
+        df = load_inventory_data(config=current_app.config)
         df = preprocess_data(df)
     except InventoryDataError as exc:
         return render_template("product_detail.html", forecast=None, forecast_chart=None, load_error=str(exc))
