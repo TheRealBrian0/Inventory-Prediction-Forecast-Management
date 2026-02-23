@@ -1,0 +1,14 @@
+# Virtual Environment
+.syscodb_env/
+.venv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Data/Environment secrets
+.env
+.DS_Store

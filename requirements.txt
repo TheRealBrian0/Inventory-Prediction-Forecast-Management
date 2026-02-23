@@ -1,0 +1,30 @@
+# Inventory Forecasting POC - Requirements
+# ============================================
+
+# Web Framework
+Flask>=2.3.0
+Werkzeug>=2.3.0
+
+# Data Processing
+pandas>=1.5.0
+numpy>=1.23.0
+
+# Time Series Forecasting
+# Install Prophet (recommended for production)
+# prophet>=1.1.0
+# OR
+# fbprophet>=0.7.0
+
+# Fallback: ARIMA
+statsmodels>=0.13.0
+
+# Visualization
+plotly>=5.15.0
+
+# Optional: For better performance
+# ujson>=5.7.0
+# orjson>=3.8.0
+
+# Development
+# jupyter>=1.0.0
+# ipython>=8.0.0
