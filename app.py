@@ -1,17 +1,20 @@
-"""
-Inventory Forecasting POC for Grocery Delivery Company
-=========================================================
-This application predicts stockout dates for SKUs using time series forecasting.
-"""
+"""Backward-compatible app module that exposes Flask app."""
 
-import pandas as pd
-import numpy as np
-from datetime import datetime, timedelta
-import warnings
-warnings.filterwarnings('ignore')
+from inventory_app import create_app
 
 # Flask imports
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, render_template, jsonify
+from inventory_app.routes.web import create_web_blueprint
+app = create_app()
+
+
+if __name__ == '__main__':
+from inventory_app.config import CsvPathResolutionError, resolve_csv_path
+from inventory_app.data.loader import (
+    InventoryDataError,
+    InventoryDataFileMissingError,
+    load_inventory_data,
+)
 
 # Forecasting imports - trying Prophet first, then fbprophet fallback
 PROPHET_AVAILABLE = False
@@ -31,7 +34,12 @@ except ImportError:
 # CONFIGURATION
 # ============================================
 
-CSV_PATH = "C:/Users/arvinbrian.j/Desktop/DataSet/SYSCO_POC_DB/retail_store_inventory.csv"
+CSV_PATH = None
+
+
+def get_csv_path():
+    """Resolve configured CSV path when needed."""
+    return resolve_csv_path()
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'inventory-forecasting-poc-secret-key'
@@ -53,15 +61,9 @@ def load_data(csv_path=None):
         DataFrame with inventory data
     """
     if csv_path is None:
-        raise ValueError("CSV path must be provided")
-    
-    try:
-        df = pd.read_csv(csv_path)
-        df.columns = df.columns.str.strip()
-        return df
-    except Exception as e:
-        print(f"Error loading data: {e}")
-        raise ValueError(f"Failed to load data from {csv_path}: {e}")
+        raise InventoryDataFileMissingError("CSV path must be provided")
+
+    return load_inventory_data(csv_path)
 
 
 def preprocess_data(df):
@@ -390,6 +392,12 @@ def get_dashboard_metrics(df, stockout_horizon_days=DEFAULT_STOCKOUT_HORIZON_DAY
 # FLASK ROUTES
 # ============================================
 
+# Register additional web routes
+app.register_blueprint(
+    create_web_blueprint(load_data, preprocess_data, get_forecast_for_product, CSV_PATH)
+)
+
+
 @app.route('/')
 def index():
     """
@@ -411,6 +419,30 @@ def index():
         metrics=metrics,
         forecasts=forecasts
     )
+    try:
+        # Load data
+        df = load_data(get_csv_path())
+        df = preprocess_data(df)
+
+        # Get dashboard metrics
+        metrics = get_dashboard_metrics(df)
+
+        # Get all product forecasts
+        forecasts = get_all_products_forecast(df, 30)
+
+        return render_template(
+            'dashboard.html',
+            metrics=metrics,
+            forecasts=forecasts,
+            load_error=None
+        )
+    except (CsvPathResolutionError, InventoryDataError) as exc:
+        return render_template(
+            'dashboard.html',
+            metrics=None,
+            forecasts=[],
+            load_error=str(exc)
+        )
 
 
 @app.route('/api/metrics')
@@ -425,6 +457,15 @@ def api_metrics():
     metrics = get_dashboard_metrics(df, stockout_horizon_days)
     
     return jsonify(metrics)
+    try:
+        df = load_data(get_csv_path())
+        df = preprocess_data(df)
+
+        metrics = get_dashboard_metrics(df)
+
+        return jsonify(metrics)
+    except (CsvPathResolutionError, InventoryDataError) as exc:
+        return jsonify({"error": str(exc)}), 503
 
 
 @app.route('/api/all-forecasts')
@@ -439,6 +480,27 @@ def api_all_forecasts():
     forecasts = get_all_products_forecast(df, stockout_horizon_days)
     
     return jsonify(forecasts)
+    try:
+        df = load_data(get_csv_path())
+        df = preprocess_data(df)
+
+        forecasts = get_all_products_forecast(df, 30)
+
+        return jsonify(forecasts)
+    except (CsvPathResolutionError, InventoryDataError) as exc:
+        return jsonify({"error": str(exc)}), 503
+
+
+@app.route('/health')
+def health():
+    """Health endpoint that does not depend on CSV readiness."""
+    return jsonify({"status": "ok"}), 200
+
+
+@app.errorhandler(404)
+def not_found(error):
+    """Readable 404 response for missing product/store combinations."""
+    return f"<h2>Not Found</h2><p>{error.description if hasattr(error, 'description') else 'The requested resource was not found.'}</p>", 404
 
 
 # ============================================
@@ -456,5 +518,10 @@ if __name__ == '__main__':
     print("- API Forecasts: http://localhost:8000/api/all-forecasts")
     print("\nForecasting Method: " + ("Prophet" if PROPHET_AVAILABLE else "Simple Moving Average"))
     print("=" * 60)
-    
+
+    try:
+        print(f"Using inventory CSV: {get_csv_path()}")
+    except CsvPathResolutionError as exc:
+        raise SystemExit(f"Startup configuration error: {exc}") from exc
+
     app.run(debug=False, host='0.0.0.0', port=8000)
