@@ -23,7 +23,7 @@ def get_forecast_for_product(df, product_id, store_id='S001', periods=30):
     else:
         forecast = forecast_demand_simple(train_data, periods)
 
-    current_inventory = product_data['Inventory Level'].iloc[-1]
+    current_inventory = float(product_data['Inventory Level'].iloc[-1])
     stockout_date, days_until_stockout = calculate_stockout_date(current_inventory, forecast)
     recommendation = get_reorder_recommendation(days_until_stockout)
 
@@ -37,8 +37,8 @@ def get_forecast_for_product(df, product_id, store_id='S001', periods=30):
     return {
         'product_id': product_id,
         'store_id': store_id,
-        'current_inventory': current_inventory,
-        'days_until_stockout': days_until_stockout,
+        'current_inventory': int(round(current_inventory)),
+        'days_until_stockout': int(days_until_stockout),
         'stockout_date': stockout_date.strftime('%Y-%m-%d') if stockout_date else 'N/A',
         'recommendation': recommendation,
         'avg_daily_demand': round(avg_daily_demand, 2),
@@ -57,7 +57,9 @@ def get_forecast_for_product(df, product_id, store_id='S001', periods=30):
 
 def get_all_products_forecast(df, periods=30, store_id='S001'):
     """Get forecasts for all products in the dataframe."""
-    products = df['Product ID'].unique()
+    products = (
+        df[df['Store ID'] == store_id]['Product ID'].dropna().unique()
+    )
     forecasts = []
 
     for product_id in products:

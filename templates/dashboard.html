@@ -1,227 +1,61 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Inventory Status Dashboard | SYSCO POC</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
             min-height: 100vh;
             padding: 20px;
         }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        .header {
+        .container { max-width: 1200px; margin: 0 auto; }
+        .panel {
             background: white;
-            border-radius: 15px;
-            padding: 25px;
-            margin-bottom: 20px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            border-radius: 14px;
+            padding: 24px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+            margin-bottom: 18px;
         }
-
-        .header h1 {
-            color: #333;
-            font-size: 28px;
-            margin-bottom: 5px;
+        h1 { font-size: 28px; color: #202124; margin-bottom: 8px; }
+        .subtitle { color: #5f6368; font-size: 14px; }
+        .summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+            margin-top: 12px;
         }
-
-        .header p {
-            color: #666;
-            font-size: 14px;
+        .metric {
+            border: 1px solid #e8eaed;
+            border-radius: 10px;
+            padding: 12px;
         }
-
-        .status-container {
-            background: white;
-            border-radius: 15px;
-            padding: 25px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-        }
-
-        .status-title {
-            font-size: 20px;
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid #e0e0e0;
-        }
-
+        .metric .label { color: #5f6368; font-size: 12px; margin-bottom: 6px; }
+        .metric .value { color: #202124; font-weight: 700; font-size: 24px; }
         .sku-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 15px;
+            grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+            gap: 12px;
         }
-
+        .sku-link { text-decoration: none; color: inherit; }
         .sku-card {
             border-radius: 10px;
-            padding: 20px;
-            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
-            transition: transform 0.2s;
+            padding: 14px;
+            border-left: 4px solid #34a853;
+            background: #f8fbff;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
         }
-
-        .sku-card:hover {
-            transform: translateY(-3px);
-        }
-
-        .sku-link {
-            text-decoration: none;
-            color: inherit;
-            display: block;
-        }
-
-        .sku-card.healthy {
-            background: linear-gradient(135deg, #f0f9f0 0%, #e0f0e0 100%);
-            border-left: 4px solid #28a745;
-        }
-
-        .sku-card.warning {
-            background: linear-gradient(135deg, #fff8f0 0%, #ffe8d0 100%);
-            border-left: 4px solid #ffc107;
-        }
-
-        .sku-card.critical {
-            background: linear-gradient(135deg, #fff0f0 0%, #ffe0e0 100%);
-            border-left: 4px solid #dc3545;
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-
-            0%,
-            100% {
-                box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
-            }
-
-            50% {
-                box-shadow: 0 3px 15px rgba(220, 53, 69, 0.3);
-            }
-        }
-
-        .sku-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-        }
-
-        .sku-id {
-            font-size: 18px;
-            font-weight: bold;
-            color: #333;
-        }
-
-        .status-icon {
-            font-size: 24px;
-        }
-
-        .sku-details {
-            font-size: 14px;
-            color: #666;
-        }
-
-        .sku-details .row {
-            display: flex;
-            justify-content: space-between;
-            padding: 5px 0;
-            border-bottom: 1px solid #eee;
-        }
-
-        .sku-details .row:last-child {
-            border-bottom: none;
-        }
-
-        .sku-details .label {
-            color: #888;
-        }
-
-        .sku-details .value {
-            font-weight: 600;
-            color: #333;
-        }
-
-        .warning-text {
-            color: #dc3545;
-            font-weight: 600;
-            font-size: 13px;
-            margin-top: 10px;
-            padding: 8px;
-            background: rgba(220, 53, 69, 0.1);
-            border-radius: 5px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .low-stock-text {
-            color: #ffc107;
-            font-weight: 600;
-            font-size: 13px;
-            margin-top: 10px;
-            padding: 8px;
-            background: rgba(255, 193, 7, 0.1);
-            border-radius: 5px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .last-updated {
-            text-align: center;
-            margin-top: 20px;
-            color: #999;
-            font-size: 12px;
-        }
-
-        .summary-bar {
-            display: flex;
-            gap: 20px;
-            margin-bottom: 20px;
-            padding: 15px;
-            background: #f8f9fa;
-            border-radius: 10px;
-        }
-
-        .summary-item {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .summary-count {
-            font-size: 24px;
-            font-weight: bold;
-        }
-
-        .summary-count.critical {
-            color: #dc3545;
-        }
-
-        .summary-count.warning {
-            color: #ffc107;
-        }
-
-        .summary-count.healthy {
-            color: #28a745;
-        }
-
-        .summary-label {
-            font-size: 12px;
-            color: #666;
-        }
-
+        .sku-card.warning { border-left-color: #f9ab00; background: #fffaf0; }
+        .sku-card.critical { border-left-color: #ea4335; background: #fff4f4; }
+        .sku-header { display: flex; justify-content: space-between; margin-bottom: 10px; }
+        .sku-id { font-weight: 700; font-size: 18px; color: #202124; }
+        .row { display: flex; justify-content: space-between; font-size: 14px; margin: 6px 0; color: #3c4043; }
+        .status { margin-top: 8px; font-size: 13px; font-weight: 600; }
+        .status.warning { color: #b06000; }
+        .status.critical { color: #b31412; }
         .error-panel {
             background: #fff4f4;
             border: 1px solid #f5c2c7;
@@ -229,126 +63,68 @@
             border-radius: 10px;
             padding: 16px;
             color: #842029;
-            margin-top: 12px;
         }
-
-        .error-panel h3 {
-            margin-bottom: 8px;
-            font-size: 18px;
-        }
-
-        .empty-state {
-            color: #666;
-            padding: 20px;
-            background: #f8f9fa;
-            border-radius: 10px;
-            text-align: center;
-        }
+        .muted { color: #5f6368; font-size: 12px; margin-top: 12px; }
     </style>
 </head>
-
 <body>
     <div class="container">
-        <div class="header">
-            <h1>📦 Inventory Status Dashboard</h1>
-            <p>Real-time monitoring with 14-day stockout policy forecasting</p>
+        <div class="panel">
+            <h1>Inventory Status Dashboard</h1>
+            <p class="subtitle">Forecast-driven stockout monitoring for {{ metrics.latest_date if metrics else "current data" }}</p>
+            {% if metrics %}
+            <div class="summary">
+                <div class="metric">
+                    <div class="label">Total Products</div>
+                    <div class="value">{{ metrics.total_products }}</div>
+                </div>
+                <div class="metric">
+                    <div class="label">At Risk (&lt; 7 days)</div>
+                    <div class="value">{{ metrics.products_at_risk }}</div>
+                </div>
+                <div class="metric">
+                    <div class="label">Low Stock (7-13 days)</div>
+                    <div class="value">{{ metrics.products_low_stock }}</div>
+                </div>
+                <div class="metric">
+                    <div class="label">Healthy (14+ days)</div>
+                    <div class="value">{{ metrics.products_healthy }}</div>
+                </div>
+            </div>
+            {% endif %}
         </div>
 
-        <div class="status-container">
-            <div class="status-title">SKU Status Overview</div>
-
+        <div class="panel">
             {% if load_error %}
             <div class="error-panel">
-                <h3>Unable to load inventory data</h3>
-                <p>{{ load_error }}</p>
+                <strong>Unable to load inventory data.</strong>
+                <div>{{ load_error }}</div>
             </div>
-            {% elif metrics %}
-            <div class="summary-bar">
-                <div class="summary-item">
-                    <div class="summary-count critical">{{ metrics.stockout_le_3_days }}</div>
-                    <div class="summary-label">Stockout<br>
-                        <= 3 days</div>
-                    </div>
-                    <div class="summary-item">
-                        <div class="summary-count warning">{{ metrics.stockout_4_7_days }}</div>
-                        <div class="summary-label">Stockout<br>4-7 days</div>
-                    </div>
-                    <div class="summary-item">
-                        <div class="summary-count healthy">{{ metrics.stockout_8_14_days }}</div>
-                        <div class="summary-label">Stockout<br>8-14 days</div>
-                    </div>
-                    <div class="summary-item">
-                        <div class="summary-count healthy">{{ metrics.stockout_gt_14_days }}</div>
-                        <div class="summary-label">Stockout<br>> 14 days</div>
-                    </div>
-                    <div class="summary-item">
-                        <div class="summary-count" style="color: #333;">{{ metrics.total_products }}</div>
-                        <div class="summary-label">Total<br>Store+SKU</div>
-                    </div>
-                </div>
-
-                <div class="sku-grid">
-                    {% for forecast in forecasts %}
-                    <div
-                        class="sku-card {% if forecast.days_until_stockout <= 3 %}critical{% elif forecast.days_until_stockout <= 14 %}warning{% else %}healthy{% endif %}">
+            {% elif forecasts %}
+            <div class="sku-grid">
+                {% for forecast in forecasts %}
+                <a class="sku-link" href="/product/{{ forecast.product_id }}">
+                    <div class="sku-card {% if forecast.days_until_stockout < 7 %}critical{% elif forecast.days_until_stockout < 14 %}warning{% endif %}">
                         <div class="sku-header">
                             <span class="sku-id">{{ forecast.product_id }}</span>
-                            <span class="label">Store {{ forecast.store_id }}</span>
-                    <a class="sku-link" href="/product/{{ forecast.product_id }}?store_id={{ forecast.store_id }}">
-                        <div
-                            class="sku-card {% if forecast.days_until_stockout < 7 %}critical{% elif forecast.days_until_stockout < 14 %}warning{% else %}healthy{% endif %}">
-                            <div class="sku-header">
-                                <span class="sku-id">{{ forecast.product_id }}</span>
-                            <span class="status-icon">
-                                {% if forecast.days_until_stockout <= 3 %}⚠️ {% elif forecast.days_until_stockout <= 14
-                                    %}⚡ {% else %}✅{% endif %} </span>
+                            <span>Store {{ forecast.store_id }}</span>
                         </div>
-                        <div class="sku-details">
-                            <div class="row">
-                                <span class="label">Current Inventory</span>
-                                <span class="value">{{ "{:,}".format(forecast.current_inventory) }}</span>
-                            </div>
-                            <div class="row">
-                                <span class="label">Avg Daily Demand</span>
-                                <span class="value">{{ forecast.avg_daily_demand }}</span>
-                            </div>
-                            <div class="row">
-                                <span class="label">14-Day Demand Forecast</span>
-                                <span class="value">{{ forecast.horizon_demand_forecast }}</span>
-                            </div>
-                            <div class="row">
-                                <span class="label">Cumulative 14-Day Demand</span>
-                                <span class="value">{{ forecast.cumulative_horizon_demand }}</span>
-                            </div>
-                            <div class="row">
-                                <span class="label">Stockout Within 14 Days</span>
-                                <span class="value">{{ 'Yes' if forecast.stockout_within_horizon else 'No' }}</span>
-                            </div>
-                            <div class="row">
-                                <span class="label">Estimated Stockout Date</span>
-                                <span class="value">{{ forecast.stockout_date_within_horizon or 'After 14 days' }}</span>
-                            </div>
+                        <div class="row"><span>Current Inventory</span><strong>{{ "{:,}".format(forecast.current_inventory) }}</strong></div>
+                        <div class="row"><span>Days Until Stockout</span><strong>{{ forecast.days_until_stockout }}</strong></div>
+                        <div class="row"><span>Stockout Date</span><strong>{{ forecast.stockout_date }}</strong></div>
+                        <div class="row"><span>Avg Daily Demand</span><strong>{{ forecast.avg_daily_demand }}</strong></div>
+                        <div class="status {% if forecast.days_until_stockout < 7 %}critical{% elif forecast.days_until_stockout < 14 %}warning{% endif %}">
+                            {{ forecast.recommendation }}
                         </div>
-                        {% if forecast.days_until_stockout <= 3 %} <div class="warning-text">
-                            ⚠️ WARNING: Stockout expected within 3 days. Reorder immediately.
                     </div>
-                    {% elif forecast.days_until_stockout <= 14 %} <div class="low-stock-text">
-                        ⚡ Stockout expected within 14 days - prioritize replenishment.
-                </div>
-                {% endif %}
-                        </div>
-                    </a>
-                    {% endfor %}
+                </a>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div>No forecasts available.</div>
+            {% endif %}
+            <div class="muted">Endpoints: <code>/api/metrics</code> and <code>/api/all-forecasts</code></div>
         </div>
-
-        <div class="last-updated">
-            Data updated: {{ metrics.latest_date }} | Forecasting powered by Prophet
-        </div>
-        {% else %}
-        <div class="empty-state">No inventory forecasts are currently available.</div>
-        {% endif %}
-    </div>
     </div>
 </body>
-
 </html>

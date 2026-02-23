@@ -1,311 +1,133 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Product Detail - {{ forecast.product_id }} | SYSCO POC</title>
+    <title>Product Detail | SYSCO POC</title>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #355c7d 0%, #6c5b7b 100%);
             min-height: 100vh;
             padding: 20px;
         }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        .header {
+        .container { max-width: 1200px; margin: 0 auto; }
+        .panel {
             background: white;
-            border-radius: 15px;
-            padding: 25px;
-            margin-bottom: 20px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            border-radius: 14px;
+            padding: 22px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.16);
+            margin-bottom: 16px;
         }
-
-        .header h1 {
-            color: #333;
-            font-size: 28px;
-            margin-bottom: 10px;
-        }
-
         .back-link {
             display: inline-block;
-            color: #667eea;
+            margin-bottom: 16px;
+            color: #1a73e8;
             text-decoration: none;
             font-weight: 600;
-            margin-bottom: 15px;
         }
-
-        .back-link:hover {
-            text-decoration: underline;
-        }
-
-        .metrics-grid {
+        .metrics {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-bottom: 20px;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
         }
-
-        .metric-card {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        .metric { border: 1px solid #e8eaed; border-radius: 10px; padding: 12px; }
+        .metric .label { color: #5f6368; font-size: 12px; margin-bottom: 6px; }
+        .metric .value { color: #202124; font-size: 24px; font-weight: 700; }
+        .error-panel {
+            background: #fff4f4;
+            border: 1px solid #f5c2c7;
+            border-left: 5px solid #dc3545;
+            border-radius: 10px;
+            padding: 16px;
+            color: #842029;
         }
-
-        .metric-card.alert {
-            border-left: 4px solid #ff4444;
-            background: linear-gradient(135deg, #fff 0%, #fff5f5 100%);
-        }
-
-        .metric-card.warning {
-            border-left: 4px solid #ffaa44;
-            background: linear-gradient(135deg, #fff 0%, #fffbf0 100%);
-        }
-
-        .metric-card.success {
-            border-left: 4px solid #44bb44;
-            background: linear-gradient(135deg, #fff 0%, #f0fff0 100%);
-        }
-
-        .metric-card.info {
-            border-left: 4px solid #667eea;
-        }
-
-        .metric-title {
-            font-size: 13px;
-            color: #666;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 8px;
-        }
-
-        .metric-value {
-            font-size: 28px;
-            font-weight: bold;
-            color: #333;
-        }
-
-        .metric-subtitle {
-            font-size: 12px;
-            color: #666;
-            margin-top: 5px;
-        }
-
-        .chart-container {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-            margin-bottom: 20px;
-        }
-
-        .chart-title {
-            font-size: 18px;
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 15px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid #f0f0f0;
-        }
-
-        .recommendation-box {
-            background: white;
-            border-radius: 12px;
-            padding: 25px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-            margin-bottom: 20px;
-        }
-
-        .recommendation-title {
-            font-size: 18px;
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 15px;
-        }
-
-        .recommendation-text {
-            font-size: 16px;
-            padding: 15px;
-            border-radius: 8px;
-            font-weight: 600;
-        }
-
-        .recommendation-critical {
-            background: #fee;
-            color: #c00;
-            border-left: 4px solid #c00;
-        }
-
-        .recommendation-warning {
-            background: #ffc;
-            color: #c80;
-            border-left: 4px solid #c80;
-        }
-
-        .recommendation-healthy {
-            background: #efe;
-            color: #080;
-            border-left: 4px solid #080;
-        }
-
-        .forecast-table {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        th {
-            background: #667eea;
-            color: white;
-            padding: 12px;
-            text-align: left;
-            font-weight: 600;
-            font-size: 13px;
-            text-transform: uppercase;
-        }
-
-        td {
-            padding: 10px;
-            border-bottom: 1px solid #f0f0f0;
-            font-size: 14px;
-        }
-
-        tr:hover {
-            background: #f8f9fa;
-        }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 10px; border-bottom: 1px solid #f1f3f4; text-align: left; }
+        th { background: #f8f9fa; }
     </style>
 </head>
-
 <body>
     <div class="container">
-        <a href="/" class="back-link">← Back to Dashboard</a>
+        <a href="/" class="back-link">Back to Dashboard</a>
 
-        <div class="header">
-            <h1>📦 Product Detail: {{ forecast.product_id }}</h1>
-            <p>Store: {{ forecast.store_id }} | Detailed demand forecast and stockout analysis</p>
-        </div>
-
-        <!-- Key Metrics -->
-        <div class="metrics-grid">
-            <div class="metric-card info">
-                <div class="metric-title">Current Inventory</div>
-                <div class="metric-value">{{ "{:,}".format(forecast.current_inventory) }}</div>
-                <div class="metric-subtitle">Units available</div>
-            </div>
-
-            <div
-                class="metric-card {% if forecast.days_until_stockout < 7 %}alert{% elif forecast.days_until_stockout < 14 %}warning{% else %}success{% endif %}">
-                <div class="metric-title">Days Until Stockout</div>
-                <div class="metric-value">{{ forecast.days_until_stockout }}</div>
-                <div class="metric-subtitle">{{ forecast.stockout_date }}</div>
-            </div>
-
-            <div class="metric-card info">
-                <div class="metric-title">Avg Daily Demand</div>
-                <div class="metric-value">{{ forecast.avg_daily_demand }}</div>
-                <div class="metric-subtitle">Historical average</div>
-            </div>
-
-            <div class="metric-card info">
-                <div class="metric-title">Max Daily Demand</div>
-                <div class="metric-value">{{ forecast.max_daily_demand }}</div>
-                <div class="metric-subtitle">Peak demand</div>
-            </div>
-
-            <div class="metric-card info">
-                <div class="metric-title">Min Daily Demand</div>
-                <div class="metric-value">{{ forecast.min_daily_demand }}</div>
-                <div class="metric-subtitle">Lowest demand</div>
-            </div>
-
-            <div class="metric-card info">
-                <div class="metric-title">30-Day Forecast</div>
-                <div class="metric-value">{{ forecast.total_forecasted_demand }}</div>
-                <div class="metric-subtitle">Avg: {{ forecast.avg_forecasted_demand }}/day</div>
+        {% if load_error %}
+        <div class="panel">
+            <div class="error-panel">
+                <strong>Unable to load inventory data.</strong>
+                <div>{{ load_error }}</div>
             </div>
         </div>
+        {% elif not forecast %}
+        <div class="panel">
+            <div class="error-panel">No forecast available for this product.</div>
+        </div>
+        {% else %}
+        <div class="panel">
+            <h1>Product Detail: {{ forecast.product_id }}</h1>
+            <p>Store: {{ forecast.store_id }}</p>
+        </div>
 
-        <!-- Recommendation Box -->
-        <div class="recommendation-box">
-            <div class="recommendation-title">🎯 Reorder Recommendation</div>
-            <div
-                class="recommendation-text {% if forecast.days_until_stockout < 7 %}recommendation-critical{% elif forecast.days_until_stockout < 14 %}recommendation-warning{% else %}recommendation-healthy{% endif %}">
-                {{ forecast.recommendation }}
+        <div class="panel">
+            <div class="metrics">
+                <div class="metric">
+                    <div class="label">Current Inventory</div>
+                    <div class="value">{{ "{:,}".format(forecast.current_inventory) }}</div>
+                </div>
+                <div class="metric">
+                    <div class="label">Days Until Stockout</div>
+                    <div class="value">{{ forecast.days_until_stockout }}</div>
+                </div>
+                <div class="metric">
+                    <div class="label">Stockout Date</div>
+                    <div class="value" style="font-size:18px">{{ forecast.stockout_date }}</div>
+                </div>
+                <div class="metric">
+                    <div class="label">Avg Daily Demand</div>
+                    <div class="value">{{ forecast.avg_daily_demand }}</div>
+                </div>
             </div>
+            <p style="margin-top: 14px;"><strong>Recommendation:</strong> {{ forecast.recommendation }}</p>
         </div>
 
-        <!-- Forecast Chart -->
-        <div class="chart-container">
-            <div class="chart-title">📈 Demand Forecast Visualization</div>
-            <div id="forecastChart">{{ forecast_chart|safe }}</div>
+        <div class="panel">
+            <h2 style="margin-bottom: 12px;">Demand Forecast</h2>
+            <div id="forecastChart" style="height: 420px;"></div>
         </div>
 
-        <!-- Forecast Data Table -->
-        <div class="forecast-table">
-            <div class="chart-title">📋 30-Day Demand Forecast Details</div>
+        <div class="panel">
+            <h2 style="margin-bottom: 12px;">Forecast Table</h2>
             <table>
                 <thead>
                     <tr>
                         <th>Date</th>
-                        <th>Predicted Demand</th>
-                        <th>Lower Bound</th>
-                        <th>Upper Bound</th>
-                        <th>Cumulative Demand</th>
+                        <th>Predicted</th>
+                        <th>Lower</th>
+                        <th>Upper</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for i in range(forecast.forecast_dates|length) %}
                     <tr>
                         <td>{{ forecast.forecast_dates[i] }}</td>
-                        <td><strong>{{ forecast.forecast_values[i] }}</strong></td>
+                        <td>{{ forecast.forecast_values[i] }}</td>
                         <td>{{ forecast.forecast_lower[i] }}</td>
                         <td>{{ forecast.forecast_upper[i] }}</td>
-                        <td>
-                            {% set cumulative = namespace(value=0) %}
-                            {% for j in range(i + 1) %}
-                            {% set cumulative.value = cumulative.value + forecast.forecast_values[j] %}
-                            {% endfor %}
-                            {{ "%.2f"|format(cumulative.value) }}
-                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
+        {% endif %}
     </div>
 
+    {% if forecast_chart %}
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const forecastChart = document.getElementById('forecastChart');
-            if (forecastChart && forecastChart.textContent) {
-                try {
-                    const chartData = JSON.parse(forecastChart.textContent);
-                    Plotly.newPlot('forecastChart', chartData.data, chartData.layout);
-                } catch (e) {
-                    console.log('Chart already rendered');
-                }
-            }
-        });
+        const chartData = {{ forecast_chart|safe }};
+        Plotly.newPlot("forecastChart", chartData.data, chartData.layout);
     </script>
+    {% endif %}
 </body>
-
 </html>
