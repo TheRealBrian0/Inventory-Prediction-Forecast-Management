@@ -1,3 +1,14 @@
+"""
+Inventory Forecasting POC for Grocery Delivery Company
+This application predicts stockout dates for SKUs using time series forecasting.
+"""
+
+import pandas as pd
+import numpy as np
+from datetime import datetime, timedelta
+import logging
+import warnings
+warnings.filterwarnings('ignore')
 """Backward-compatible app module that exposes Flask app."""
 
 from inventory_app import create_app
@@ -43,6 +54,7 @@ def get_csv_path():
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'inventory-forecasting-poc-secret-key'
+logger = logging.getLogger(__name__)
 
 DEFAULT_STOCKOUT_HORIZON_DAYS = 14
 
@@ -113,7 +125,8 @@ def forecast_demand_prophet(train_data, periods=30):
         DataFrame with forecasted values
     """
     if not PROPHET_AVAILABLE:
-        return forecast_demand_simple(train_data, periods)
+        fallback_forecast = forecast_demand_simple(train_data, periods)
+        return fallback_forecast, 'fallback', 'Prophet library unavailable'
     
     try:
         model = Prophet(
@@ -127,10 +140,11 @@ def forecast_demand_prophet(train_data, periods=30):
         future = model.make_future_dataframe(periods=periods)
         forecast = model.predict(future)
         
-        return forecast
+        return forecast, 'prophet', None
     except Exception as e:
-        print(f"Prophet forecasting error: {e}")
-        return forecast_demand_simple(train_data, periods)
+        logger.exception("Prophet forecasting error")
+        fallback_forecast = forecast_demand_simple(train_data, periods)
+        return fallback_forecast, 'fallback', str(e)
 
 
 def forecast_demand_simple(train_data, periods=30):
@@ -145,16 +159,18 @@ def forecast_demand_simple(train_data, periods=30):
     Returns:
         DataFrame with forecasted values
     """
-    # Calculate moving average
-    recent_demand = train_data['y'].tail(14).mean()
-    
-    # Calculate trend
-    if len(train_data) >= 7:
-        week_avg = train_data['y'].tail(7).mean()
-        prev_week_avg = train_data['y'].tail(14).head(7).mean()
-        trend = (week_avg - prev_week_avg) / 7
+    history = train_data['y'].astype(float).reset_index(drop=True)
+    lookback = min(len(history), 14)
+
+    # Deterministic rolling-mean baseline
+    recent_demand = history.tail(lookback).mean() if lookback > 0 else 0.0
+
+    # Deterministic linear trend (daily slope)
+    if len(history) >= 2:
+        x = np.arange(len(history))
+        trend = np.polyfit(x, history.values, 1)[0]
     else:
-        trend = 0
+        trend = 0.0
     
     # Generate forecasts
     last_date = train_data['ds'].max()
@@ -163,9 +179,7 @@ def forecast_demand_simple(train_data, periods=30):
     forecasts = []
     for i in range(periods):
         predicted = recent_demand + (trend * i)
-        # Add some variability
-        predicted = predicted * np.random.uniform(0.9, 1.1)
-        forecasts.append(max(0, predicted))
+        forecasts.append(max(0.0, predicted))
     
     forecast_df = pd.DataFrame({
         'ds': future_dates,
@@ -259,10 +273,21 @@ def get_forecast_for_product(df, product_id, store_id='S001', periods=DEFAULT_ST
     })
     
     # Get forecast
+    fallback_reason = None
     if PROPHET_AVAILABLE:
-        forecast = forecast_demand_prophet(train_data, periods)
+        forecast, model_used, fallback_reason = forecast_demand_prophet(train_data, periods)
     else:
         forecast = forecast_demand_simple(train_data, periods)
+        model_used = 'fallback'
+        fallback_reason = 'Prophet library unavailable'
+
+    if fallback_reason:
+        logger.warning(
+            "Using fallback forecast for SKU %s (store %s): %s",
+            product_id,
+            store_id,
+            fallback_reason
+        )
     
     # Get current inventory
     current_inventory = product_data['Inventory Level'].iloc[-1]
@@ -307,6 +332,8 @@ def get_forecast_for_product(df, product_id, store_id='S001', periods=DEFAULT_ST
         'forecast_values': forecast['yhat'].round(2).tolist(),
         'forecast_lower': forecast['yhat_lower'].round(2).tolist(),
         'forecast_upper': forecast['yhat_upper'].round(2).tolist(),
+        'model_used': model_used,
+        'fallback_reason': fallback_reason,
         'historical_dates': train_data['ds'].dt.strftime('%Y-%m-%d').tolist(),
         'historical_values': train_data['y'].round(2).tolist()
     }
