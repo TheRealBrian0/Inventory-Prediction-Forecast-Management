@@ -76,6 +76,12 @@
             transform: translateY(-3px);
         }
 
+        .sku-link {
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+
         .sku-card.healthy {
             background: linear-gradient(135deg, #f0f9f0 0%, #e0f0e0 100%);
             border-left: 4px solid #28a745;
@@ -250,10 +256,11 @@
 
                 <div class="sku-grid">
                     {% for forecast in forecasts %}
-                    <div
-                        class="sku-card {% if forecast.days_until_stockout < 7 %}critical{% elif forecast.days_until_stockout < 14 %}warning{% else %}healthy{% endif %}">
-                        <div class="sku-header">
-                            <span class="sku-id">{{ forecast.product_id }}</span>
+                    <a class="sku-link" href="/product/{{ forecast.product_id }}?store_id={{ forecast.store_id }}">
+                        <div
+                            class="sku-card {% if forecast.days_until_stockout < 7 %}critical{% elif forecast.days_until_stockout < 14 %}warning{% else %}healthy{% endif %}">
+                            <div class="sku-header">
+                                <span class="sku-id">{{ forecast.product_id }}</span>
                             <span class="status-icon">
                                 {% if forecast.days_until_stockout < 7 %}⚠️ {% elif forecast.days_until_stockout < 14
                                     %}⚡ {% else %}✅{% endif %} </span>
@@ -286,8 +293,9 @@
                         ⚡ Low stock - consider reordering soon.
                 </div>
                 {% endif %}
-            </div>
-            {% endfor %}
+                        </div>
+                    </a>
+                    {% endfor %}
         </div>
 
         <div class="last-updated">
