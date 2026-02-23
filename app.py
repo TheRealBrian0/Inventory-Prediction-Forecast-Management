@@ -2,6 +2,9 @@
 
 from inventory_app import create_app
 
+# Flask imports
+from flask import Flask, render_template, jsonify
+from inventory_app.routes.web import create_web_blueprint
 app = create_app()
 
 
@@ -40,6 +43,7 @@ def get_csv_path():
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'inventory-forecasting-poc-secret-key'
+
 
 # ============================================
 # DATA LOADING AND PROCESSING
@@ -370,6 +374,12 @@ def get_dashboard_metrics(df):
 # FLASK ROUTES
 # ============================================
 
+# Register additional web routes
+app.register_blueprint(
+    create_web_blueprint(load_data, preprocess_data, get_forecast_for_product, CSV_PATH)
+)
+
+
 @app.route('/')
 def index():
     """
@@ -437,6 +447,12 @@ def api_all_forecasts():
 def health():
     """Health endpoint that does not depend on CSV readiness."""
     return jsonify({"status": "ok"}), 200
+
+
+@app.errorhandler(404)
+def not_found(error):
+    """Readable 404 response for missing product/store combinations."""
+    return f"<h2>Not Found</h2><p>{error.description if hasattr(error, 'description') else 'The requested resource was not found.'}</p>", 404
 
 
 # ============================================
