@@ -1,18 +1,11 @@
-"""
-Inventory Forecasting POC for Grocery Delivery Company
-=========================================================
-This application predicts stockout dates for SKUs using time series forecasting.
-"""
+"""Backward-compatible app module that exposes Flask app."""
 
-import pandas as pd
-import numpy as np
-from datetime import datetime, timedelta
-import warnings
-warnings.filterwarnings('ignore')
+from inventory_app import create_app
 
-# Flask imports
-from flask import Flask, render_template, jsonify, request
+app = create_app()
 
+
+if __name__ == '__main__':
 from inventory_app.config import CsvPathResolutionError, resolve_csv_path
 from inventory_app.data.loader import (
     InventoryDataError,
