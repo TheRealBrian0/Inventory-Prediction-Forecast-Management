@@ -94,3 +94,11 @@ Server defaults:
 ## Notes
 - If Prophet is installed (`prophet` or `fbprophet`), it is used automatically.
 - If CSV is missing/invalid, web pages show a readable error and APIs return `503` with an error message.
+
+## Independent Data Simulator
+- Path: `simulation_dataset/`
+- Purpose: generate one new logical day of rows every 3 minutes for all products and warehouses (`S001`-`S005`).
+- Start: `.\simulation_dataset\start_simulator.ps1`
+- Stop: `.\simulation_dataset\stop_simulator.ps1`
+- One cycle only: `.\.syscodb_env\Scripts\python .\simulation_dataset\simulator.py --once`
+- Details: `simulation_dataset/README.md`
