@@ -12,8 +12,8 @@ def preprocess_data(df):
 
 def get_product_summary(df):
     """Get current inventory summary per product."""
-    latest_date = df['Date'].max()
-    latest_data = df[df['Date'] == latest_date].copy()
+    latest_date = df['Date'].max() #to find most recent date in df
+    latest_data = df[df['Date'] == latest_date].copy() #to get all rows from that latest existing date
 
     summary = latest_data.groupby('Product ID').agg({
         'Inventory Level': 'last',

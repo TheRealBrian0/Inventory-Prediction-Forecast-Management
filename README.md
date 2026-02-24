@@ -12,7 +12,7 @@ Flask web app for inventory risk monitoring and stockout forecasting by SKU/stor
 3. JSON APIs for metrics and all forecasts.
 
 ## Project Flow (Brief)
-1. `run.py` creates the Flask app using `inventory_app.create_app()`.
+1. `app.py` creates the Flask app using `inventory_app.create_app()`.
 2. Routes load + validate CSV via `inventory_app/data/loader.py`.
 3. Data is preprocessed (`Date` parsing/sorting) in `inventory_app/data/preprocess.py`.
 4. Forecasting runs from `inventory_app/forecasting/*`.
@@ -78,7 +78,7 @@ $env:DEFAULT_STORE_ID="S001"
 ## Run
 
 ```bash
-python run.py
+python app.py
 ```
 
 Server defaults:
@@ -102,3 +102,34 @@ Server defaults:
 - Stop: `.\simulation_dataset\stop_simulator.ps1`
 - One cycle only: `.\.syscodb_env\Scripts\python .\simulation_dataset\simulator.py --once`
 - Details: `simulation_dataset/README.md`
+
+## Reorder Calculation Logic
+1. For each SKU, the model forecasts daily demand for the next `FORECAST_PERIODS` days.
+2. Forecast demand is cumulatively summed day by day.
+3. The first day where cumulative demand is greater than or equal to current inventory is treated as stockout date.
+4. `days_until_stockout` is computed as:
+   - `stockout_date - latest_data_date` (not system clock date).
+5. If no stockout is found inside the forecast horizon:
+   - `stockout_date = N/A`
+   - recommendation = `SUFFICIENT STOCK: No stockout expected within the next <horizon> days.`
+   - UI shows days as `>horizon` (for example `>30`).
+
+## Status Buckets
+- `At Risk`: stockout in `< 7` days
+- `Low Stock`: stockout in `7-13` days
+- `Healthy`: stockout in `>= 14` days or not within forecast horizon
+
+## End-to-End Workflow
+### Main App
+1. Load inventory data (CSV or MySQL based on `DATA_SOURCE`).
+2. Preprocess dates and sort by SKU/date.
+3. Forecast demand per SKU (`Prophet` when available, fallback model otherwise).
+4. Compute stockout date, days-to-stockout, and reorder recommendation.
+5. Render dashboard/product pages and expose API endpoints.
+
+### Simulator Service (`simulation_dataset/`)
+1. Reads latest date from `retail_inventory`.
+2. Creates next logical date (`latest + 1 day`).
+3. Generates rows for all products across warehouses (`S001`-`S005`) with controlled variability.
+4. Inserts generated rows into MySQL.
+5. Repeats every 180 seconds when run in loop mode.

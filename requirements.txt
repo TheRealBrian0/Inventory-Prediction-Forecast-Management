@@ -31,3 +31,5 @@ plotly>=5.15.0
 # Development
 # jupyter>=1.0.0
 # ipython>=8.0.0
+
+logging

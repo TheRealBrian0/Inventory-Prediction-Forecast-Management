@@ -22,6 +22,7 @@ REQUIRED_COLUMNS = {
     "Category",
 }
 
+# Mapping of MySQL column names to inventory column names
 MYSQL_COLUMN_MAP = {
     "date": "Date",
     "store_id": "Store ID",
@@ -49,7 +50,7 @@ class InventoryDataColumnsError(InventoryDataError):
 class InventoryDataReadError(InventoryDataError):
     """Raised when data cannot be read."""
 
-
+#validates to check missing columns 
 def _validate_columns(df: pd.DataFrame) -> pd.DataFrame:
     df.columns = df.columns.str.strip()
     missing_columns = sorted(REQUIRED_COLUMNS - set(df.columns))
@@ -60,7 +61,7 @@ def _validate_columns(df: pd.DataFrame) -> pd.DataFrame:
         )
     return df
 
-
+#not sure what this function does=======================================>
 def _validate_identifier(name: str, label: str) -> str:
     if not name or not re.fullmatch(r"[A-Za-z0-9_]+", name):
         raise InventoryDataReadError(
@@ -68,7 +69,7 @@ def _validate_identifier(name: str, label: str) -> str:
         )
     return name
 
-
+#checks if path exists then calls "validate" to check missing columns
 def _load_from_csv(csv_path: str | Path) -> pd.DataFrame:
     path = Path(csv_path)
 
@@ -101,6 +102,9 @@ def _load_from_mysql(config) -> pd.DataFrame:
     if not db_user:
         raise InventoryDataReadError("DB_USER is required for MySQL data source.")
 
+    #we can use "mysql.connector" or "sqlalchemy"
+    #here we use sqlalchemy for lesser boilerplate, thus we
+    #need con_url to establish connection
     conn_url = (
         f"mysql+pymysql://{quote_plus(str(db_user))}:{quote_plus(str(db_password))}"
         f"@{db_host}:{db_port}/{db_name}?charset=utf8mb4"
@@ -128,6 +132,7 @@ def load_inventory_data(csv_path: str | Path | None = None, config=None) -> pd.D
     if config is not None:
         source = str(config.get("DATA_SOURCE", "csv")).lower()
 
+#NOTE: source will ALWAYS be SQL, this was before MySQL transition
     if source == "mysql":
         return _load_from_mysql(config)
 

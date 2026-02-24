@@ -1,31 +1,42 @@
 """Prophet-based forecasting utilities."""
 
 import warnings
-
+import logging
+import sys
 from inventory_app.forecasting.fallback import forecast_demand_simple
 
 warnings.filterwarnings('ignore')
+
+logger = logging.getLogger("inventory_app.forecasting.prophet_service")
+#if not logger.handlers:
+#    _handler = logging.StreamHandler(sys.stdout)
+#    _handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
+#    logger.addHandler(_handler)
+logger.setLevel(logging.INFO)
+#logger.propagate = False
 
 PROPHET_AVAILABLE = False
 try:
     from prophet import Prophet
     PROPHET_AVAILABLE = True
-    print('Using Prophet for time series forecasting')
+    logger.info("Prophet engine detected: prophet")
 except ImportError:
     try:
         from fbprophet import Prophet
         PROPHET_AVAILABLE = True
-        print('Using fbprophet for time series forecasting')
+        logger.info("Prophet engine detected: fbprophet")
     except ImportError:
-        print('Warning: Prophet not available')
+        logger.warning("Prophet not available; fallback forecasting will be used")
 
 
 def forecast_demand_prophet(train_data, periods=30):
     """Forecast demand using Prophet, or fallback if unavailable."""
     if not PROPHET_AVAILABLE:
+        logger.info("Forecast path=fallback reason=prophet_unavailable periods=%s", periods)
         return forecast_demand_simple(train_data, periods)
 
     try:
+        logger.info("Forecast path=prophet periods=%s", periods)
         model = Prophet(
             yearly_seasonality=True,
             weekly_seasonality=True,
@@ -39,5 +50,5 @@ def forecast_demand_prophet(train_data, periods=30):
 
         return forecast
     except Exception as e:
-        print(f'Prophet forecasting error: {e}')
+        logger.exception("Prophet forecasting error; switching to fallback: %s", e)
         return forecast_demand_simple(train_data, periods)

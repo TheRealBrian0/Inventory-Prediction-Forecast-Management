@@ -44,7 +44,12 @@ def get_forecast_for_product(df, product_id, store_id='S001', periods=30):
         forecast,
         reference_date=product_data['Date'].max(),
     )
-    recommendation = get_reorder_recommendation(days_until_stockout)
+    stockout_within_horizon = days_until_stockout is not None
+    days_until_stockout_for_scoring = days_until_stockout if stockout_within_horizon else periods + 1
+    recommendation = get_reorder_recommendation(
+        days_until_stockout,
+        horizon_days=periods,
+    )
 
     avg_daily_demand = product_data['Units Sold'].mean()
     max_daily_demand = product_data['Units Sold'].max()
@@ -57,7 +62,11 @@ def get_forecast_for_product(df, product_id, store_id='S001', periods=30):
         'product_id': product_id,
         'store_id': store_id,
         'current_inventory': int(round(current_inventory)),
-        'days_until_stockout': int(days_until_stockout),
+        'days_until_stockout': int(days_until_stockout_for_scoring),
+        'days_until_stockout_display': (
+            str(int(days_until_stockout)) if stockout_within_horizon else f">{periods}"
+        ),
+        'stockout_within_horizon': stockout_within_horizon,
         'stockout_date': stockout_date.strftime('%Y-%m-%d') if stockout_date else 'N/A',
         'recommendation': recommendation,
         'avg_daily_demand': round(avg_daily_demand, 2),

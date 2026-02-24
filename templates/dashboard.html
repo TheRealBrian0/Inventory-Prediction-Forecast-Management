@@ -110,7 +110,7 @@
                             <span>Store {{ forecast.store_id }}</span>
                         </div>
                         <div class="row"><span>Current Inventory</span><strong>{{ "{:,}".format(forecast.current_inventory) }}</strong></div>
-                        <div class="row"><span>Days Until Stockout</span><strong>{{ forecast.days_until_stockout }}</strong></div>
+                        <div class="row"><span>Days Until Stockout</span><strong>{{ forecast.days_until_stockout_display or forecast.days_until_stockout }}</strong></div>
                         <div class="row"><span>Stockout Date</span><strong>{{ forecast.stockout_date }}</strong></div>
                         <div class="row"><span>Avg Daily Demand</span><strong>{{ forecast.avg_daily_demand }}</strong></div>
                         <div class="status {% if forecast.days_until_stockout < 7 %}critical{% elif forecast.days_until_stockout < 14 %}warning{% endif %}">

@@ -11,7 +11,7 @@ try:
 except ImportError:  # pragma: no cover
     load_dotenv = None
 
-if load_dotenv is not None:
+if load_dotenv is not None: #will never be none, .env will always exist, this is a redundant check
     load_dotenv(PROJECT_ROOT / ".env")
 
 

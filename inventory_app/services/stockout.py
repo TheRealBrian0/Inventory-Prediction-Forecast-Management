@@ -23,11 +23,19 @@ def calculate_stockout_date(inventory_level, forecast_df, reference_date=None):
         days_until_stockout = (stockout_date.date() - reference_date).days
         return stockout_date, days_until_stockout
 
-    return None, 999
+    return None, None
 
 
-def get_reorder_recommendation(days_until_stockout, lead_time=7):
+def get_reorder_recommendation(days_until_stockout, lead_time=7, horizon_days=None):
     """Generate reorder recommendation based on stockout risk."""
+    if days_until_stockout is None:
+        if horizon_days is not None:
+            return (
+                "SUFFICIENT STOCK: No stockout expected within the next "
+                f"{horizon_days} days."
+            )
+        return "SUFFICIENT STOCK: No stockout expected within forecast horizon."
+
     if days_until_stockout <= 0:
         return 'URGENT: Reorder immediately - stockout imminent!'
     if days_until_stockout <= lead_time:
