@@ -1,66 +1,94 @@
-"""Web routes for dashboard and product detail pages."""
+"""Server-rendered web routes (Python frontend via Jinja templates)."""
+
+from __future__ import annotations
 
 import json
+from pathlib import Path
 
-from flask import Blueprint, abort, current_app, render_template
+from fastapi import APIRouter, Request
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
 
-from inventory_app.data.loader import InventoryDataError, load_inventory_data
-from inventory_app.data.preprocess import preprocess_data
+from inventory_app.core.settings import get_settings
+from inventory_app.data.loader import InventoryDataError
+from inventory_app.dependencies.data import get_inventory_dataframe
 from inventory_app.services.dashboard import (
     get_all_products_forecast,
     get_dashboard_metrics,
     get_forecast_for_product,
 )
 
-web_bp = Blueprint("web", __name__)
+TEMPLATES = Jinja2Templates(directory=str(Path(__file__).resolve().parents[2] / "templates"))
+web_router = APIRouter(tags=["web"])
 
 
-@web_bp.route("/")
-def index():
-    """Main dashboard page."""
+@web_router.get("/", response_class=HTMLResponse)
+def dashboard_page(request: Request) -> HTMLResponse:
+    """Dashboard page rendered from Jinja2 templates."""
+    settings = get_settings()
+
     try:
-        df = load_inventory_data(config=current_app.config)
-        df = preprocess_data(df)
+        df = get_inventory_dataframe(settings)
     except InventoryDataError as exc:
-        return render_template("dashboard.html", metrics=None, forecasts=[], load_error=str(exc))
+        return TEMPLATES.TemplateResponse(
+            request=request,
+            name="dashboard.html",
+            context={"request": request, "metrics": None, "forecasts": [], "load_error": str(exc)},
+        )
 
     metrics = get_dashboard_metrics(
         df,
-        periods=current_app.config["FORECAST_PERIODS"],
-        store_id=current_app.config["DEFAULT_STORE_ID"],
+        periods=settings.forecast_periods,
+        store_id=settings.default_store_id,
     )
     forecasts = get_all_products_forecast(
         df,
-        periods=current_app.config["FORECAST_PERIODS"],
-        store_id=current_app.config["DEFAULT_STORE_ID"],
+        periods=settings.forecast_periods,
+        store_id=settings.default_store_id,
     )
 
-    return render_template("dashboard.html", metrics=metrics, forecasts=forecasts, load_error=None)
+    return TEMPLATES.TemplateResponse(
+        request=request,
+        name="dashboard.html",
+        context={"request": request, "metrics": metrics, "forecasts": forecasts, "load_error": None},
+    )
 
 
-@web_bp.route("/product/<product_id>")
-def product_detail(product_id):
-    """Product detail forecast page."""
+@web_router.get("/product/{product_id}", response_class=HTMLResponse)
+def product_detail_page(product_id: str, request: Request) -> HTMLResponse:
+    """Product details page with historical + forecast chart."""
+    settings = get_settings()
+
     try:
-        df = load_inventory_data(config=current_app.config)
-        df = preprocess_data(df)
+        df = get_inventory_dataframe(settings)
     except InventoryDataError as exc:
-        return render_template("product_detail.html", forecast=None, forecast_chart=None, load_error=str(exc))
+        return TEMPLATES.TemplateResponse(
+            request=request,
+            name="product_detail.html",
+            context={"request": request, "forecast": None, "forecast_chart": None, "load_error": str(exc)},
+        )
 
     forecast = get_forecast_for_product(
         df,
         product_id,
-        store_id=current_app.config["DEFAULT_STORE_ID"],
-        periods=current_app.config["FORECAST_PERIODS"],
+        store_id=settings.default_store_id,
+        periods=settings.forecast_periods,
     )
 
     if not forecast:
-        abort(
-            404,
-            description=(
-                f"No forecast data found for product '{product_id}' in "
-                f"store '{current_app.config['DEFAULT_STORE_ID']}'."
-            ),
+        return TEMPLATES.TemplateResponse(
+            request=request,
+            name="product_detail.html",
+            context={
+                "request": request,
+                "forecast": None,
+                "forecast_chart": None,
+                "load_error": (
+                    f"No forecast data found for product '{product_id}' in "
+                    f"store '{settings.default_store_id}'."
+                ),
+            },
+            status_code=404,
         )
 
     forecast_chart = json.dumps(
@@ -99,9 +127,9 @@ def product_detail(product_id):
         }
     )
 
-    return render_template(
-        "product_detail.html",
-        forecast=forecast,
-        forecast_chart=forecast_chart,
-        load_error=None,
+    return TEMPLATES.TemplateResponse(
+        request=request,
+        name="product_detail.html",
+        context={"request": request, "forecast": forecast, "forecast_chart": forecast_chart, "load_error": None},
     )
+

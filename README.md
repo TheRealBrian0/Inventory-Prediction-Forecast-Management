@@ -1,34 +1,45 @@
 # Inventory Prediction Forecast Management
 
-Flask web app for inventory risk monitoring and stockout forecasting by SKU/store.
+FastAPI-based inventory risk monitoring and stockout forecasting by SKU/store.
 
 ## What It Does
-- Loads historical inventory/sales data from a CSV file.
-- Forecasts short-term demand per product (Prophet when available, fallback model otherwise).
+- Loads historical inventory/sales data from CSV or MySQL.
+- Forecasts short-term demand per product (Prophet when available, fallback otherwise).
 - Estimates days until stockout from current inventory vs forecasted demand.
-- Shows:
-1. Dashboard with product risk buckets.
-2. Product detail page with forecast chart and recommendation.
-3. JSON APIs for metrics and all forecasts.
+- Serves:
+1. Server-rendered dashboard and product pages (Python/Jinja frontend).
+2. JSON API endpoints designed for future React integration.
 
-## Project Flow (Brief)
-1. `app.py` creates the Flask app using `inventory_app.create_app()`.
-2. Routes load + validate CSV via `inventory_app/data/loader.py`.
-3. Data is preprocessed (`Date` parsing/sorting) in `inventory_app/data/preprocess.py`.
-4. Forecasting runs from `inventory_app/forecasting/*`.
-5. Stockout/reorder logic is computed in `inventory_app/services/*`.
-6. Results are rendered in `templates/` or returned from `/api/*`.
+## Current Architecture (FastAPI)
+- `app.py`: ASGI entrypoint and local `uvicorn` startup.
+- `inventory_app/__init__.py`: app factory, CORS setup, router registration.
+- `inventory_app/core/settings.py`: centralized environment-driven settings.
+- `inventory_app/dependencies/data.py`: shared data loading + preprocessing dependency.
+- `inventory_app/routes/web.py`: server-rendered pages (`/`, `/product/{product_id}`).
+- `inventory_app/routes/api.py`: versioned JSON APIs (`/api/v1/*`) plus legacy aliases.
+- `inventory_app/schemas/api.py`: typed response contracts for API consumers.
+- Business logic remains in:
+  - `inventory_app/data/*`
+  - `inventory_app/forecasting/*`
+  - `inventory_app/services/*`
+
+## Why This Is React-Ready
+- Versioned API namespace: `/api/v1`.
+- Stable typed response models (Pydantic) for forecasts/metrics.
+- CORS support via `CORS_ORIGINS` env variable.
+- Store and horizon overrides exposed as query params for client-driven filtering.
 
 ## Requirements
 - Python 3.10+ recommended
-- Install dependencies:
+
+Install dependencies:
 
 ```bash
 pip install -r requirements.txt
 ```
 
 ## CSV Input Requirements
-The CSV must contain these columns:
+The source dataset must expose these business columns (CSV names or MySQL mapped names):
 - `Date`
 - `Store ID`
 - `Product ID`
@@ -39,40 +50,30 @@ The CSV must contain these columns:
 - `Category`
 
 ## Configuration
-Use environment variables (from shell or `.env`):
+Use environment variables (shell or `.env`):
 - `DATA_SOURCE`: `csv` or `mysql`
-- `INVENTORY_CSV_PATH` (preferred): full path to your CSV file
-- `CSV_PATH` (legacy fallback): full path to your CSV file
+- `INVENTORY_CSV_PATH` (preferred) or `CSV_PATH`
 - `FORECAST_PERIODS` (default: `30`)
 - `DEFAULT_STORE_ID` (default: `S001`)
-- `SECRET_KEY` (optional Flask secret)
-- `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `DB_TABLE` (for MySQL mode)
+- `CORS_ORIGINS` (default: `*`, comma-separated for multi-origin)
+- `HOST` (default: `0.0.0.0`)
+- `PORT` (default: `8000`)
+- `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `DB_TABLE` (MySQL mode)
 
-### `.env` (recommended)
-
-Create a `.env` in the project root:
+Example `.env`:
 
 ```env
 DATA_SOURCE=mysql
 INVENTORY_CSV_PATH=C:\Users\arvinbrian.j\Desktop\DataSet\SYSCO_POC_DB\retail_store_inventory.csv
 FORECAST_PERIODS=30
 DEFAULT_STORE_ID=S001
+CORS_ORIGINS=*
 DB_HOST=127.0.0.1
 DB_PORT=3306
 DB_USER=root
 DB_PASSWORD=root
 DB_NAME=sysco_poc_db
 DB_TABLE=retail_inventory
-```
-
-The app auto-loads `.env` on startup.
-
-### PowerShell example
-
-```powershell
-$env:INVENTORY_CSV_PATH="C:\path\to\retail_store_inventory.csv"
-$env:FORECAST_PERIODS="30"
-$env:DEFAULT_STORE_ID="S001"
 ```
 
 ## Run
@@ -86,50 +87,41 @@ Server defaults:
 - Port: `8000`
 
 ## Routes
+### Server-Rendered Pages (Python frontend)
 - Dashboard: `http://localhost:8000/`
 - Product detail: `http://localhost:8000/product/<product_id>`
-- API metrics: `http://localhost:8000/api/metrics`
-- API all forecasts: `http://localhost:8000/api/all-forecasts`
 
-## Notes
-- If Prophet is installed (`prophet` or `fbprophet`), it is used automatically.
-- If CSV is missing/invalid, web pages show a readable error and APIs return `503` with an error message.
+### API (React-ready)
+- OpenAPI docs: `http://localhost:8000/api/docs`
+- Health: `http://localhost:8000/api/v1/health`
+- Metrics: `http://localhost:8000/api/v1/metrics`
+- All forecasts: `http://localhost:8000/api/v1/forecasts`
+- Product forecast: `http://localhost:8000/api/v1/forecasts/<product_id>`
+
+### Legacy API aliases (kept for compatibility)
+- `http://localhost:8000/api/metrics`
+- `http://localhost:8000/api/all-forecasts`
 
 ## Independent Data Simulator
 - Path: `simulation_dataset/`
 - Purpose: generate one new logical day of rows every 3 minutes for all products and warehouses (`S001`-`S005`).
-- Start: `.\simulation_dataset\start_simulator.ps1`
-- Stop: `.\simulation_dataset\stop_simulator.ps1`
-- One cycle only: `.\.syscodb_env\Scripts\python .\simulation_dataset\simulator.py --once`
+- Start: `./simulation_dataset/start_simulator.ps1`
+- Stop: `./simulation_dataset/stop_simulator.ps1`
+- One cycle only: `./.syscodb_env/Scripts/python ./simulation_dataset/simulator.py --once`
 - Details: `simulation_dataset/README.md`
 
 ## Reorder Calculation Logic
-1. For each SKU, the model forecasts daily demand for the next `FORECAST_PERIODS` days.
-2. Forecast demand is cumulatively summed day by day.
-3. The first day where cumulative demand is greater than or equal to current inventory is treated as stockout date.
-4. `days_until_stockout` is computed as:
-   - `stockout_date - latest_data_date` (not system clock date).
-5. If no stockout is found inside the forecast horizon:
+1. Forecast daily demand for next `FORECAST_PERIODS` days.
+2. Cumulatively sum forecast demand.
+3. First day cumulative demand reaches inventory is stockout date.
+4. `days_until_stockout = stockout_date - latest_data_date`.
+5. If none within horizon:
    - `stockout_date = N/A`
    - recommendation = `SUFFICIENT STOCK: No stockout expected within the next <horizon> days.`
-   - UI shows days as `>horizon` (for example `>30`).
+   - UI days display = `>horizon`
 
 ## Status Buckets
 - `At Risk`: stockout in `< 7` days
 - `Low Stock`: stockout in `7-13` days
-- `Healthy`: stockout in `>= 14` days or not within forecast horizon
+- `Healthy`: stockout in `>= 14` days or outside forecast horizon
 
-## End-to-End Workflow
-### Main App
-1. Load inventory data (CSV or MySQL based on `DATA_SOURCE`).
-2. Preprocess dates and sort by SKU/date.
-3. Forecast demand per SKU (`Prophet` when available, fallback model otherwise).
-4. Compute stockout date, days-to-stockout, and reorder recommendation.
-5. Render dashboard/product pages and expose API endpoints.
-
-### Simulator Service (`simulation_dataset/`)
-1. Reads latest date from `retail_inventory`.
-2. Creates next logical date (`latest + 1 day`).
-3. Generates rows for all products across warehouses (`S001`-`S005`) with controlled variability.
-4. Inserts generated rows into MySQL.
-5. Repeats every 180 seconds when run in loop mode.

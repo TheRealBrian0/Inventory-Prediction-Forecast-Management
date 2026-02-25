@@ -1,31 +1,25 @@
-"""Application configuration defaults and path helpers."""
+"""Backward-compatible configuration access.
 
-from pathlib import Path
-import os
+Use `inventory_app.core.settings.get_settings` for new code.
+"""
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_CSV_PATH = PROJECT_ROOT / "data" / "retail_store_inventory.csv"
-
-try:
-    from dotenv import load_dotenv
-except ImportError:  # pragma: no cover
-    load_dotenv = None
-
-if load_dotenv is not None: #will never be none, .env will always exist, this is a redundant check
-    load_dotenv(PROJECT_ROOT / ".env")
+from inventory_app.core.settings import get_settings
 
 
 class Config:
-    """Default Flask/config settings."""
+    """Legacy config shape retained for compatibility with older imports."""
 
-    SECRET_KEY = os.environ.get("SECRET_KEY", "inventory-forecasting-poc-secret-key")
-    DATA_SOURCE = os.environ.get("DATA_SOURCE", "csv").lower()
-    CSV_PATH = os.environ.get("INVENTORY_CSV_PATH", os.environ.get("CSV_PATH", str(DEFAULT_CSV_PATH)))
-    FORECAST_PERIODS = int(os.environ.get("FORECAST_PERIODS", 30))
-    DEFAULT_STORE_ID = os.environ.get("DEFAULT_STORE_ID", "S001")
-    DB_HOST = os.environ.get("DB_HOST", "127.0.0.1")
-    DB_PORT = int(os.environ.get("DB_PORT", 3306))
-    DB_USER = os.environ.get("DB_USER", "")
-    DB_PASSWORD = os.environ.get("DB_PASSWORD", "")
-    DB_NAME = os.environ.get("DB_NAME", "")
-    DB_TABLE = os.environ.get("DB_TABLE", "retail_inventory")
+    _settings = get_settings()
+
+    SECRET_KEY = _settings.secret_key
+    DATA_SOURCE = _settings.data_source
+    CSV_PATH = _settings.csv_path
+    FORECAST_PERIODS = _settings.forecast_periods
+    DEFAULT_STORE_ID = _settings.default_store_id
+    DB_HOST = _settings.db_host
+    DB_PORT = _settings.db_port
+    DB_USER = _settings.db_user
+    DB_PASSWORD = _settings.db_password
+    DB_NAME = _settings.db_name
+    DB_TABLE = _settings.db_table
+

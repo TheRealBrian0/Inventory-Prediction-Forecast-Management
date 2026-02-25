@@ -8,12 +8,7 @@ from inventory_app.forecasting.fallback import forecast_demand_simple
 warnings.filterwarnings('ignore')
 
 logger = logging.getLogger("inventory_app.forecasting.prophet_service")
-#if not logger.handlers:
-#    _handler = logging.StreamHandler(sys.stdout)
-#    _handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
-#    logger.addHandler(_handler)
 logger.setLevel(logging.INFO)
-#logger.propagate = False
 
 PROPHET_AVAILABLE = False
 try:
