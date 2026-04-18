@@ -23,39 +23,41 @@ web_router = APIRouter(tags=["web"])
 
 
 @web_router.get("/", response_class=HTMLResponse)
-def dashboard_page(request: Request) -> HTMLResponse:
+def dashboard_page(request: Request, store_id: str | None = None) -> HTMLResponse:
     """Dashboard page rendered from Jinja2 templates."""
     settings = get_settings()
 
     try:
         df = get_inventory_dataframe(settings)
     except InventoryDataError as exc:
+        selected_store_id = store_id or settings.default_store_id
         return TEMPLATES.TemplateResponse(
             request=request,
             name="dashboard.html",
-            context={"request": request, "metrics": None, "forecasts": [], "load_error": str(exc)},
+            context={"request": request, "metrics": None, "forecasts": [], "load_error": str(exc), "selected_store_id": selected_store_id, "stores": ["S001", "S002", "S003", "S004", "S005"]},
         )
 
+    selected_store_id = store_id or settings.default_store_id
     metrics = get_dashboard_metrics(
         df,
         periods=settings.forecast_periods,
-        store_id=settings.default_store_id,
+        store_id=selected_store_id,
     )
     forecasts = get_all_products_forecast(
         df,
         periods=settings.forecast_periods,
-        store_id=settings.default_store_id,
+        store_id=selected_store_id,
     )
 
     return TEMPLATES.TemplateResponse(
         request=request,
         name="dashboard.html",
-        context={"request": request, "metrics": metrics, "forecasts": forecasts, "load_error": None},
+        context={"request": request, "metrics": metrics, "forecasts": forecasts, "load_error": None, "selected_store_id": selected_store_id, "stores": ["S001", "S002", "S003", "S004", "S005"]},
     )
 
 
 @web_router.get("/product/{product_id}", response_class=HTMLResponse)
-def product_detail_page(product_id: str, request: Request) -> HTMLResponse:
+def product_detail_page(product_id: str, request: Request, store_id: str | None = None) -> HTMLResponse:
     """Product details page with historical + forecast chart."""
     settings = get_settings()
 
@@ -68,10 +70,11 @@ def product_detail_page(product_id: str, request: Request) -> HTMLResponse:
             context={"request": request, "forecast": None, "forecast_chart": None, "load_error": str(exc)},
         )
 
+    selected_store_id = store_id or settings.default_store_id
     forecast = get_forecast_for_product(
         df,
         product_id,
-        store_id=settings.default_store_id,
+        store_id=selected_store_id,
         periods=settings.forecast_periods,
     )
 
@@ -130,6 +133,6 @@ def product_detail_page(product_id: str, request: Request) -> HTMLResponse:
     return TEMPLATES.TemplateResponse(
         request=request,
         name="product_detail.html",
-        context={"request": request, "forecast": forecast, "forecast_chart": forecast_chart, "load_error": None},
+        context={"request": request, "forecast": forecast, "forecast_chart": forecast_chart, "load_error": None, "selected_store_id": selected_store_id},
     )
 

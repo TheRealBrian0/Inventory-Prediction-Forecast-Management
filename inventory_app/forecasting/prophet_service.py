@@ -37,6 +37,9 @@ def forecast_demand_prophet(train_data, periods=30):
             weekly_seasonality=True,
             daily_seasonality=False,
             changepoint_prior_scale=0.05,
+            changepoint_range=0.8,
+            n_changepoints=20,
+            mcmc_samples=0,
         )
         model.fit(train_data)
 

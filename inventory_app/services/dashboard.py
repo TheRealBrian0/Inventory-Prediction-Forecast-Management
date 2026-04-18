@@ -1,12 +1,32 @@
 """Dashboard service logic and forecast orchestration."""
 
 from datetime import timedelta
+from functools import lru_cache
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import json
 
 import pandas as pd
+
+try:
+    from sqlalchemy import create_engine, text
+    SQLALCHEMY_AVAILABLE = True
+except ImportError:
+    SQLALCHEMY_AVAILABLE = False
 
 from inventory_app.forecasting.fallback import forecast_demand_simple
 from inventory_app.forecasting.prophet_service import PROPHET_AVAILABLE, forecast_demand_prophet
 from inventory_app.services.stockout import calculate_stockout_date, get_reorder_recommendation
+
+WAREHOUSE_REGION_MAP = {
+    "S001": "North",
+    "S002": "South",
+    "S003": "East",
+    "S004": "West",
+    "S005": "Central",
+}
+
+# Cache for forecasts: key is (store_id, periods), value is list of forecasts
+forecast_cache = {}
 
 
 def get_forecast_for_product(df, product_id, store_id='S001', periods=30):
@@ -80,22 +100,85 @@ def get_forecast_for_product(df, product_id, store_id='S001', periods=30):
         'forecast_upper': forecast['yhat_upper'].round(2).tolist(),
         'historical_dates': train_data['ds'].dt.strftime('%Y-%m-%d').tolist(),
         'historical_values': train_data['y'].round(2).tolist(),
+        'available_stores_categorized': get_available_stores(df, product_id, store_id),
     }
 
 
 def get_all_products_forecast(df, periods=30, store_id='S001'):
     """Get forecasts for all products in the dataframe."""
-    products = (
+    cache_key = (store_id, periods, df['Date'].max())
+    if cache_key in forecast_cache:
+        return forecast_cache[cache_key]
+
+    products = sorted(
         df[df['Store ID'] == store_id]['Product ID'].dropna().unique()
     )
     forecasts = []
 
-    for product_id in products:
-        forecast = get_forecast_for_product(df, product_id, store_id, periods)
-        if forecast:
-            forecasts.append(forecast)
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        future_to_product = {executor.submit(get_forecast_for_product, df, product_id, store_id, periods): product_id for product_id in products}
+        for future in as_completed(future_to_product):
+            forecast = future.result()
+            if forecast:
+                forecasts.append(forecast)
 
+    forecast_cache[cache_key] = forecasts
     return forecasts
+
+
+def get_available_stores(df, product_id, current_store_id):
+    """Get categorized stores for the product, only including sufficient stock warehouses."""
+    all_stores = df['Store ID'].unique()
+
+    sufficient_stores = []
+    no_stock_stores = []
+
+    for store_id in all_stores:
+        store_product_data = df[(df['Product ID'] == product_id) & (df['Store ID'] == store_id)].copy()
+        if store_product_data.empty:
+            no_stock_stores.append(store_id)
+            continue
+
+        current_inventory = store_product_data['Inventory Level'].iloc[-1]
+        if current_inventory <= 0:
+            no_stock_stores.append(store_id)
+            continue
+
+        # Compute days_until_stockout using the same forecast method as main logic
+        train_data = pd.DataFrame({'ds': store_product_data['Date'], 'y': store_product_data['Units Sold']})
+        if PROPHET_AVAILABLE:
+            forecast = forecast_demand_prophet(train_data, periods=30)
+        else:
+            forecast = forecast_demand_simple(train_data, periods=30)
+        last_history_date = train_data['ds'].max()
+        forecast = forecast[forecast['ds'] > last_history_date].copy()
+        forecast = forecast.sort_values('ds').head(30)
+
+        if forecast.empty:
+            no_stock_stores.append(store_id)
+            continue
+
+        stockout_date, days_until_stockout = calculate_stockout_date(
+            current_inventory, forecast, reference_date=store_product_data['Date'].max()
+        )
+        days_until_stockout_for_scoring = days_until_stockout if days_until_stockout is not None else 31
+
+        if days_until_stockout_for_scoring >= 14:
+            sufficient_stores.append(store_id)
+        else:
+            no_stock_stores.append(store_id)
+
+    current_region = WAREHOUSE_REGION_MAP.get(current_store_id, "")
+    same_region_sufficient = [s for s in sufficient_stores if WAREHOUSE_REGION_MAP.get(s, "") == current_region and s != current_store_id]
+    other_sufficient = [s for s in sufficient_stores if s not in same_region_sufficient and s != current_store_id]
+    same_region_no_stock = [s for s in no_stock_stores if WAREHOUSE_REGION_MAP.get(s, "") == current_region and s != current_store_id]
+    other_no_stock = [s for s in no_stock_stores if s not in same_region_no_stock and s != current_store_id]
+
+    return {
+        'same_region': same_region_sufficient,
+        'other': other_sufficient,
+        'no_stock': same_region_no_stock + other_no_stock
+    }
 
 
 def get_dashboard_metrics(df, periods=30, store_id='S001'):

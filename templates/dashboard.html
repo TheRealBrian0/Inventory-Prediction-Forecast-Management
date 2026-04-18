@@ -65,13 +65,44 @@
             color: #842029;
         }
         .muted { color: #5f6368; font-size: 12px; margin-top: 12px; }
+        .sku-card { position: relative; }
+        .tooltip {
+            visibility: hidden;
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #fff;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            padding: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 10;
+            white-space: nowrap;
+            font-size: 12px;
+            max-width: 300px;
+        }
+        .sku-card:hover .tooltip { visibility: visible; }
+        .tooltip-section { margin-bottom: 8px; }
+        .tooltip-section:last-child { margin-bottom: 0; }
+        .tooltip-title { font-weight: bold; margin-bottom: 4px; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="panel">
             <h1>Inventory Status Dashboard</h1>
-            <p class="subtitle">Forecast-driven stockout monitoring for {{ metrics.latest_date if metrics else "current data" }}</p>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <p class="subtitle">Forecast-driven stockout monitoring for {{ metrics.latest_date if metrics else "current data" }}</p>
+                <div>
+                    <label for="store-select" style="font-size: 14px; margin-right: 8px;">Select Store:</label>
+                    <select id="store-select" onchange="changeStore(this.value)">
+                        {% for store in stores %}
+                        <option value="{{ store }}" {% if store == selected_store_id %}selected{% endif %}>{{ store }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
             {% if metrics %}
             <div class="summary">
                 <div class="metric">
@@ -103,7 +134,7 @@
             {% elif forecasts %}
             <div class="sku-grid">
                 {% for forecast in forecasts %}
-                <a class="sku-link" href="/product/{{ forecast.product_id }}">
+                <a class="sku-link" href="/product/{{ forecast.product_id }}?store_id={{ selected_store_id }}">
                     <div class="sku-card {% if forecast.days_until_stockout < 7 %}critical{% elif forecast.days_until_stockout < 14 %}warning{% endif %}">
                         <div class="sku-header">
                             <span class="sku-id">{{ forecast.product_id.replace('P', 'SKU-') }}</span>
@@ -116,6 +147,22 @@
                         <div class="status {% if forecast.days_until_stockout < 7 %}critical{% elif forecast.days_until_stockout < 14 %}warning{% endif %}">
                             {{ forecast.recommendation }}
                         </div>
+                        {% if forecast.days_until_stockout < 14 %}
+                        <div class="tooltip">
+                            <div class="tooltip-section">
+                                <div class="tooltip-title">Same Region:</div>
+                                <div>{{ forecast.available_stores_categorized.same_region|join(', ') or 'None' }}</div>
+                            </div>
+                            <div class="tooltip-section">
+                                <div class="tooltip-title">Other Warehouses:</div>
+                                <div>{{ forecast.available_stores_categorized.other|join(', ') or 'None' }}</div>
+                            </div>
+                            <div class="tooltip-section">
+                                <div class="tooltip-title">No Stock:</div>
+                                <div>{{ forecast.available_stores_categorized.no_stock|join(', ') or 'None' }}</div>
+                            </div>
+                        </div>
+                        {% endif %}
                     </div>
                 </a>
                 {% endfor %}
@@ -126,5 +173,10 @@
             <div class="muted">Endpoints: <code>/api/metrics</code> and <code>/api/all-forecasts</code></div>
         </div>
     </div>
+    <script>
+        function changeStore(storeId) {
+            window.location.href = `/?store_id=${storeId}`;
+        }
+    </script>
 </body>
 </html>
