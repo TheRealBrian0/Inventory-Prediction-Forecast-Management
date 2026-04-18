@@ -120,7 +120,7 @@ def product_detail_page(product_id: str, request: Request) -> HTMLResponse:
                 },
             ],
             "layout": {
-                "title": f"Demand Forecast for {forecast['product_id']}",
+                "title": f"Demand Forecast for {forecast['product_id'].replace('P', 'SKU-')}",
                 "xaxis": {"title": "Date"},
                 "yaxis": {"title": "Units Sold"},
             },

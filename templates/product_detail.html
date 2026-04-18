@@ -66,7 +66,7 @@
         </div>
         {% else %}
         <div class="panel">
-            <h1>Product Detail: {{ forecast.product_id }}</h1>
+            <h1>Product Detail: {{ forecast.product_id.replace('P', 'SKU-') }}</h1>
             <p>Store: {{ forecast.store_id }}</p>
         </div>
 

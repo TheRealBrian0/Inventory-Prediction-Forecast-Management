@@ -106,7 +106,7 @@
                 <a class="sku-link" href="/product/{{ forecast.product_id }}">
                     <div class="sku-card {% if forecast.days_until_stockout < 7 %}critical{% elif forecast.days_until_stockout < 14 %}warning{% endif %}">
                         <div class="sku-header">
-                            <span class="sku-id">{{ forecast.product_id }}</span>
+                            <span class="sku-id">{{ forecast.product_id.replace('P', 'SKU-') }}</span>
                             <span>Store {{ forecast.store_id }}</span>
                         </div>
                         <div class="row"><span>Current Inventory</span><strong>{{ "{:,}".format(forecast.current_inventory) }}</strong></div>
