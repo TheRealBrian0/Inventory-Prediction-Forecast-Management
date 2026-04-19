@@ -7,17 +7,17 @@ FastAPI-based inventory risk monitoring and stockout forecasting by SKU/store.
 - Forecasts short-term demand per product (Prophet when available, fallback otherwise).
 - Estimates days until stockout from current inventory vs forecasted demand.
 - Serves:
-1. Server-rendered dashboard and product pages (Python/Jinja frontend).
-2. JSON API endpoints designed for future React integration.
+1. React-based dashboard and product pages (client-side frontend).
+2. JSON API endpoints for data consumption.
 
-## Current Architecture (FastAPI)
+## Current Architecture (FastAPI + React)
 - `app.py`: ASGI entrypoint and local `uvicorn` startup.
-- `inventory_app/__init__.py`: app factory, CORS setup, router registration.
+- `inventory_app/__init__.py`: app factory, CORS setup, router registration, static file serving for React.
 - `inventory_app/core/settings.py`: centralized environment-driven settings.
 - `inventory_app/dependencies/data.py`: shared data loading + preprocessing dependency.
-- `inventory_app/routes/web.py`: server-rendered pages (`/`, `/product/{product_id}`).
 - `inventory_app/routes/api.py`: versioned JSON APIs (`/api/v1/*`) plus legacy aliases.
 - `inventory_app/schemas/api.py`: typed response contracts for API consumers.
+- `frontend/`: React application with components for dashboard and product details.
 - Business logic remains in:
   - `inventory_app/data/*`
   - `inventory_app/forecasting/*`
@@ -31,11 +31,19 @@ FastAPI-based inventory risk monitoring and stockout forecasting by SKU/store.
 
 ## Requirements
 - Python 3.10+ recommended
+- Node.js 16+ for React frontend
 
-Install dependencies:
+Install Python dependencies:
 
 ```bash
 pip install -r requirements.txt
+```
+
+Install React dependencies:
+
+```bash
+cd frontend
+npm install
 ```
 
 ## CSV Input Requirements
@@ -78,16 +86,34 @@ DB_TABLE=retail_inventory
 
 ## Run
 
+Start the backend:
+
 ```bash
 python app.py
 ```
 
+In a separate terminal, start the React frontend:
+
+```bash
+cd frontend
+npm start
+```
+
 Server defaults:
 - Host: `0.0.0.0`
-- Port: `8000`
+- Port: `8000` (backend), `3000` (frontend dev server)
+
+For production, build the React app:
+
+```bash
+cd frontend
+npm run build
+```
+
+Then the backend will serve the built React app.
 
 ## Routes
-### Server-Rendered Pages (Python frontend)
+### React Frontend
 - Dashboard: `http://localhost:8000/`
 - Product detail: `http://localhost:8000/product/<product_id>`
 

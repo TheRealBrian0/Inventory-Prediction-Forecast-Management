@@ -12,3 +12,7 @@ __pycache__/
 # Data/Environment secrets
 .env
 .DS_Store
+
+node_modules/
+dist/
+build/

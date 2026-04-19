@@ -1,0 +1,40 @@
+.product-detail {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.metrics {
+  display: flex;
+  gap: 20px;
+  margin: 20px 0;
+}
+
+.metric {
+  background: #f0f0f0;
+  padding: 10px;
+  border-radius: 5px;
+  flex: 1;
+}
+
+.chart {
+  margin: 20px 0;
+}
+
+.forecast-table {
+  margin-top: 20px;
+}
+
+.forecast-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.forecast-table th, .forecast-table td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
+}
+
+.forecast-table th {
+  background-color: #f2f2f2;
+}
