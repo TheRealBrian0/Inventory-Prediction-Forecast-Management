@@ -3,6 +3,21 @@
   margin: 0 auto;
 }
 
+.back-button {
+  display: inline-block;
+  background: #4285f4;
+  color: white;
+  padding: 10px 20px;
+  text-decoration: none;
+  border-radius: 5px;
+  font-weight: bold;
+  transition: background 0.3s;
+}
+
+.back-button:hover {
+  background: #3367d6;
+}
+
 .metrics {
   display: flex;
   gap: 20px;

@@ -40,6 +40,13 @@ function Dashboard() {
     setSearchParams({ store_id: newStoreId });
   };
 
+  const getStatusClass = (recommendation) => {
+    if (recommendation.includes('SUFFICIENT')) return 'sufficient';
+    if (recommendation.includes('REORDER NOW') || recommendation.includes('PREPARE TO ORDER')) return 'reorder';
+    if (recommendation.includes('URGENT')) return 'critical';
+    return '';
+  };
+
   if (loading) return <div>Loading...</div>;
   if (error) return <div>Error: {error}</div>;
 
@@ -72,9 +79,22 @@ function Dashboard() {
             <p>Store: {forecast.store_id}</p>
             <p>Inventory: {forecast.current_inventory.toLocaleString()}</p>
             <p>Days Until Stockout: {forecast.days_until_stockout_display}</p>
-            <p className={`status ${forecast.days_until_stockout < 7 ? 'critical' : forecast.days_until_stockout < 14 ? 'warning' : ''}`}>
+            <p className={`status ${getStatusClass(forecast.recommendation)}`}>
               {forecast.recommendation}
             </p>
+            {forecast.days_until_stockout < 14 && forecast.available_stores_categorized && (
+              <div className="tooltip">
+                <div className="tooltip-section">
+                  <strong>Same Region:</strong> {forecast.available_stores_categorized.same_region.join(', ') || 'None'}
+                </div>
+                <div className="tooltip-section">
+                  <strong>Stocked:</strong> {forecast.available_stores_categorized.other.join(', ') || 'None'}
+                </div>
+                <div className="tooltip-section">
+                  <strong>No Stock:</strong> {forecast.available_stores_categorized.no_stock.join(', ') || 'None'}
+                </div>
+              </div>
+            )}
           </Link>
         ))}
       </div>

@@ -72,7 +72,7 @@ function ProductDetail() {
 
   return (
     <div className="product-detail">
-      <Link to={`/?store_id=${storeId}`}>Back to Dashboard</Link>
+      <Link to={`/?store_id=${storeId}`} className="back-button">Back to Dashboard</Link>
       <h2>Product Detail: SKU-{forecast.product_id.slice(1)}</h2>
       <p>Store: {forecast.store_id}</p>
 

@@ -47,6 +47,7 @@ class ProductForecastResponse(BaseModel):
     forecast_upper: list[float]
     historical_dates: list[str]
     historical_values: list[float]
+    available_stores_categorized: dict[str, list[str]]
 
 
 class ErrorResponse(BaseModel):
